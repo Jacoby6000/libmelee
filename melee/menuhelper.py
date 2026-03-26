@@ -57,6 +57,8 @@ class MenuHelper():
             frozen_stadium (bool): Whether to use Frozen Stadium as the stage.
                 Only makes sense for Slippi >= 3.19.0.
         """
+        if connect_code and not controller._console.has_user_json:
+            raise ValueError("Can't enter a connect code without a user.json configured.")
 
         # If we're at the character select screen, choose our character
         if gamestate.menu_state in [enums.Menu.CHARACTER_SELECT, enums.Menu.SLIPPI_ONLINE_CSS]:

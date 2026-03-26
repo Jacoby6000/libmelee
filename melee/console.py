@@ -483,7 +483,8 @@ class Console:
                     self.dolphin_info = default_dolphin_info()
                     self.path = self.dolphin_info.install_dir
                     self.is_mainline = self.dolphin_info.is_mainline
-                    self.dolphin_home_path = self.dolphin_info.home_path
+                    if self.dolphin_home_path is None:
+                        self.dolphin_home_path = self.dolphin_info.home_path
 
                 self.exe_path = get_exe_path(self.path)
                 self.dolphin_version = get_dolphin_version(self.exe_path)
@@ -644,15 +645,25 @@ class Console:
             shutil.rmtree(self.temp_dir)
             self.temp_dir = None
 
-    def _setup_home_directory(self,):
+    def _setup_home_directory(self):
         self._setup_dolphin_ini()
 
+        home_path = self._get_dolphin_home_path()
+        slippi_path = os.path.join(home_path, 'Slippi')
+        os.makedirs(slippi_path, exist_ok=True)
+        user_json_path = os.path.join(slippi_path, 'user.json')
+
+        self.has_user_json = False
         if self.user_json_path:
-          home_path = self._get_dolphin_home_path()
-          slippi_path = os.path.join(home_path, 'Slippi')
-          os.makedirs(slippi_path, exist_ok=True)
-          user_json_path = os.path.join(slippi_path, 'user.json')
-          shutil.copyfile(self.user_json_path, user_json_path)
+            shutil.copyfile(self.user_json_path, user_json_path)
+            self.has_user_json = True
+        elif os.path.exists(user_json_path):
+            self.has_user_json = True
+        elif not os.path.exists(user_json_path) and self.dolphin_info:
+            src_path = os.path.join(self.dolphin_info.home_path, 'Slippi', 'user.json')
+            if os.path.isfile(src_path):
+                shutil.copyfile(src_path, user_json_path)
+                self.has_user_json = True
 
         if self.setup_gecko_codes:
             self._setup_gecko_codes()
