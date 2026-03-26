@@ -4,11 +4,6 @@ import dataclasses
 import platform
 import copy
 import time
-try:
-    import win32file
-    import pywintypes
-except ImportError:
-    pass
 
 from melee.console import Console
 from melee import enums
@@ -105,10 +100,11 @@ class Controller:
               you send as inputs, modulo the deadzone or sticks with magnitude > 80.
               Also adjusts the analog triggers in an analogous way.
         """
-        self._is_dolphin = console.is_dolphin
-        if self._is_dolphin:
-            self.pipe_path = console.get_dolphin_pipes_path(port)
-            self.pipe = None
+        if not console.is_dolphin:
+            raise ValueError("Controllers can only be used with Dolphin console")
+
+        self.pipe_path = console.get_dolphin_pipes_path(port)
+        self.pipe = None
 
         self.port = port
         self.prev = ControllerState()
@@ -131,46 +127,49 @@ class Controller:
             Note:
                 Blocks until the other side is ready
         """
-        if self._type == enums.ControllerType.STANDARD:
-            # Add ourselves to the console's controller list
-            self._console.controllers.append(self)
+        if self._type is not enums.ControllerType.STANDARD:
+            raise ValueError("Only standard controllers can be connected")
 
-            if self._is_dolphin:
-                if platform.system() == "Windows":
-                    # Windows can take a little while to actually make the pipes
-                    #   So keep trying a few times to connect to it
-                    for _ in range(5):
-                        try:
-                            # "Create File" in windows is what you use to open a file. Not
-                            #   create one. Because the windows API is stupid.
-                            self.pipe = win32file.CreateFile(
-                                self.pipe_path,
-                                win32file.GENERIC_WRITE,
-                                0,
-                                None,
-                                win32file.OPEN_EXISTING,
-                                0,
-                                None
-                            )
-                            return True
-                        except pywintypes.error:
-                            time.sleep(1)
-                else:
-                    self.pipe = open(self.pipe_path, "w")
-                return True
-            else:
-                return True
-        else:
-            return True
+        # Add ourselves to the console's controller list
+        self._console.controllers.append(self)
+
+        if platform.system() == "Windows":
+            import win32file, pywintypes
+            # Windows can take a little while to actually make the pipes
+            #   So keep trying a few times to connect to it
+            for _ in range(5):
+                try:
+                    # "Create File" in windows is what you use to open a file. Not
+                    #   create one. Because the windows API is stupid.
+                    self.pipe = win32file.CreateFile(
+                        self.pipe_path,
+                        win32file.GENERIC_WRITE,
+                        0,
+                        None,
+                        win32file.OPEN_EXISTING,
+                        0,
+                        None
+                    )
+                    return True
+                except pywintypes.error:
+                    time.sleep(1)
+            return False
+
+        self.pipe = open(self.pipe_path, "w")
+        return True
 
     def disconnect(self):
         """Disconnects the controller from the console"""
-        if self._is_dolphin and self.pipe:
+        if self.pipe:
             try:
                 self.pipe.close()
             except BrokenPipeError:
                 pass
             self.pipe = None
+
+    def _check_pipe(self):
+        if not self.pipe:
+            raise RuntimeError("Controller is not connected to console")
 
     def simple_press(self, x, y, button):
         """Here is a simpler representation of a button press, in case
@@ -185,26 +184,25 @@ class Controller:
                     x = 0 (left) to 1 (right) on the main stick
                     y = 0 (down) to 1 (up) on the main stick
                     button = the button to press. Enter None for no button"""
-        if self._is_dolphin:
-            if not self.pipe:
-                return
-            #Tilt the main stick
-            self.tilt_analog(enums.Button.BUTTON_MAIN, x, y)
-            #Release the shoulders
-            self.press_shoulder(enums.Button.BUTTON_L, 0)
-            self.press_shoulder(enums.Button.BUTTON_R, 0)
-            #Press the right button
-            for item in enums.Button:
-                #Don't do anything for the main or c-stick
-                if item == enums.Button.BUTTON_MAIN:
-                    continue
-                if item == enums.Button.BUTTON_C:
-                    continue
-                #Press our button, release all others
-                if item == button:
-                    self.press_button(item)
-                else:
-                    self.release_button(item)
+        self._check_pipe()
+
+        #Tilt the main stick
+        self.tilt_analog(enums.Button.BUTTON_MAIN, x, y)
+        #Release the shoulders
+        self.press_shoulder(enums.Button.BUTTON_L, 0)
+        self.press_shoulder(enums.Button.BUTTON_R, 0)
+        #Press the right button
+        for item in enums.Button:
+            #Don't do anything for the main or c-stick
+            if item == enums.Button.BUTTON_MAIN:
+                continue
+            if item == enums.Button.BUTTON_C:
+                continue
+            #Press our button, release all others
+            if item == button:
+                self.press_button(item)
+            else:
+                self.release_button(item)
 
     def press_button(self, button: enums.Button):
         """Press a single button
@@ -214,14 +212,14 @@ class Controller:
         Args:
             button (enums.Button): Button to press
         """
+        self._check_pipe()
+
         self.current.button[button] = True
-        if self._is_dolphin:
-            if not self.pipe:
-                return
-            command = "PRESS " + str(button.value) + "\n"
-            if self.logger:
-                self.logger.log("Buttons Pressed", command, concat=True)
-            self._write(command)
+
+        command = "PRESS " + str(button.value) + "\n"
+        if self.logger:
+            self.logger.log("Buttons Pressed", command, concat=True)
+        self._write(command)
 
     def release_button(self, button):
         """Release a single button
@@ -232,13 +230,12 @@ class Controller:
             button (enums.Button): Button to release
         """
         self.current.button[button] = False
-        if self._is_dolphin:
-            if not self.pipe:
-                return
-            command = "RELEASE " + str(button.value) + "\n"
-            if self.logger:
-                self.logger.log("Buttons Pressed", command, concat=True)
-            self._write(command)
+        self._check_pipe()
+
+        command = "RELEASE " + str(button.value) + "\n"
+        if self.logger:
+            self.logger.log("Buttons Pressed", command, concat=True)
+        self._write(command)
 
     def press_shoulder(self, button: enums.Button, amount: float):
         """Press the analog shoulder buttons to a given amount
@@ -256,15 +253,14 @@ class Controller:
             self.current.l_shoulder = amount
         elif button == enums.Button.BUTTON_R:
             self.current.r_shoulder = amount
-        if self._is_dolphin:
-            if not self.pipe:
-                return
-            if self._fix_analog_inputs:
-                amount = fix_analog_trigger(amount)
-            command = "SET " + str(button.value) + " " + str(amount) + "\n"
-            if self.logger:
-                self.logger.log("Buttons Pressed", command, concat=True)
-            self._write(command)
+
+        self._check_pipe()
+        if self._fix_analog_inputs:
+            amount = fix_analog_trigger(amount)
+        command = "SET " + str(button.value) + " " + str(amount) + "\n"
+        if self.logger:
+            self.logger.log("Buttons Pressed", command, concat=True)
+        self._write(command)
 
     def tilt_analog(self, button: enums.Button, x: float, y: float):
         """ Tilt one of the analog sticks to a given (x,y) value
@@ -285,13 +281,11 @@ class Controller:
         else:
             raise ValueError(f"Invalid button type {button} for tilt_analog.")
 
-        if self._is_dolphin:
-            if not self.pipe:
-                return
-            command = "SET " + str(button.value) + " " + str(x) + " " + str(y) + "\n"
-            if self.logger:
-                self.logger.log("Buttons Pressed", command, concat=True)
-            self._write(command)
+        self._check_pipe()
+        command = "SET " + str(button.value) + " " + str(x) + " " + str(y) + "\n"
+        if self.logger:
+            self.logger.log("Buttons Pressed", command, concat=True)
+        self._write(command)
 
     def tilt_analog_unit(self, button, x, y):
         """Tilt one of the analog sticks to a given (x,y) value.
@@ -334,34 +328,35 @@ class Controller:
         self.current.c_stick = (.5, .5)
         self.current.l_shoulder = 0
         self.current.r_shoulder = 0
-        if self._is_dolphin:
-            if not self.pipe:
-                return
-            command = "RELEASE A" + "\n"
-            command += "RELEASE B" + "\n"
-            command += "RELEASE X" + "\n"
-            command += "RELEASE Y" + "\n"
-            command += "RELEASE Z" + "\n"
-            command += "RELEASE L" + "\n"
-            command += "RELEASE R" + "\n"
-            command += "RELEASE START" + "\n"
-            command += "RELEASE D_UP" + "\n"
-            command += "RELEASE D_DOWN" + "\n"
-            command += "RELEASE D_LEFT" + "\n"
-            command += "RELEASE D_RIGHT" + "\n"
-            command += "SET MAIN .5 .5" + "\n"
-            command += "SET C .5 .5" + "\n"
-            command += "SET L 0" + "\n"
-            command += "SET R 0" + "\n"
-            #Send the presses to dolphin
-            self._write(command)
-            if self.logger:
-                self.logger.log("Buttons Pressed", "Empty Input", concat=True)
+
+        self._check_pipe()
+
+        command = "RELEASE A" + "\n"
+        command += "RELEASE B" + "\n"
+        command += "RELEASE X" + "\n"
+        command += "RELEASE Y" + "\n"
+        command += "RELEASE Z" + "\n"
+        command += "RELEASE L" + "\n"
+        command += "RELEASE R" + "\n"
+        command += "RELEASE START" + "\n"
+        command += "RELEASE D_UP" + "\n"
+        command += "RELEASE D_DOWN" + "\n"
+        command += "RELEASE D_LEFT" + "\n"
+        command += "RELEASE D_RIGHT" + "\n"
+        command += "SET MAIN .5 .5" + "\n"
+        command += "SET C .5 .5" + "\n"
+        command += "SET L 0" + "\n"
+        command += "SET R 0" + "\n"
+        #Send the presses to dolphin
+        self._write(command)
+        if self.logger:
+            self.logger.log("Buttons Pressed", "Empty Input", concat=True)
 
     def _write(self, command):
         """ Platform independent button write function.
         """
         if platform.system() == "Windows":
+            import win32file, pywintypes
             try:
                 win32file.WriteFile(self.pipe, command.encode())
             except pywintypes.error:
@@ -378,9 +373,6 @@ class Controller:
         # Move the current controller state into the previous one
         self.prev = copy.copy(self.current)
 
-        if self._is_dolphin:
-            self._write("FLUSH\n")
-            if platform.system() != "Windows":
-                if not self.pipe:
-                    return
-                self.pipe.flush()
+        self._write("FLUSH\n")
+        if platform.system() != "Windows":
+            self.pipe.flush()
