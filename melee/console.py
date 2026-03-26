@@ -54,36 +54,32 @@ def _ignore_fifos(src, names):
 def _copytree_safe(src, dst):
     shutil.copytree(src, dst, ignore=_ignore_fifos)
 
-def default_dolphin_install_path() -> tuple[str, bool]:
+@dataclasses.dataclass
+class DolphinInfo:
+    install_dir: str
+    is_mainline: bool
+    settings: dict
+    home_path: str
+    iso_path: Optional[str]
+
+def slippi_launcher_path() -> str:
+
     os_name = platform.system()
     home = os.path.expanduser("~")
 
     if os_name == "Windows":
-        slippi_launcher = os.path.join(
+        return os.path.join(
             home, 'AppData', 'Roaming', 'Slippi Launcher')
 
     elif os_name == "Darwin":
-        slippi_launcher = os.path.join(
+        return os.path.join(
             home, 'Library', 'Application Support', 'Slippi Launcher')
 
     elif os_name == "Linux":
-        slippi_launcher = os.path.join(
+        return os.path.join(
             home, '.config', 'Slippi Launcher')
     else:
         raise NotImplementedError(f"Unsupported OS '{os_name}'")
-
-    # Read the settings file to determine which dolphin version to use
-    settings_path = os.path.join(slippi_launcher, 'Settings')
-    with open(settings_path, 'r') as f:
-        settings = json.load(f)
-    # Note: some users might be missing this flag.
-    is_mainline = settings["settings"].get("useNetplayBeta", False)
-
-    path = os.path.join(slippi_launcher, "netplay-beta" if is_mainline else "netplay")
-    if os.path.isdir(path):
-        return path, is_mainline
-
-    raise FileNotFoundError("Could not find dolphin install directory.")
 
 
 def _is_mainline(path: str) -> bool:
@@ -117,6 +113,38 @@ def _default_home_path(path: str, is_mainline: bool) -> str:
         return user_path
 
     raise FileNotFoundError("Could not find dolphin home directory.")
+
+def default_dolphin_info() -> DolphinInfo:
+    slippi_launcher = slippi_launcher_path()
+
+    # Read the settings file to determine which dolphin version to use
+    settings_path = os.path.join(slippi_launcher, 'Settings')
+    with open(settings_path, 'r') as f:
+        settings = json.load(f)
+    # Note: some users might be missing this flag.
+    is_mainline = settings["settings"].get("useNetplayBeta", False)
+
+    path = os.path.join(slippi_launcher, "netplay-beta" if is_mainline else "netplay")
+    if not os.path.isdir(path):
+        raise FileNotFoundError("Could not find dolphin install directory.")
+
+    home_path = _default_home_path(path, is_mainline)
+
+    iso_path = settings["settings"].get("isoPath", None)
+    if iso_path is not None and not os.path.isfile(iso_path):
+        logging.warning(f"Could not find ISO at {iso_path}")
+        iso_path = None
+    else:
+        logging.info(f"Found ISO at {iso_path}")
+
+    return DolphinInfo(
+        install_dir=path,
+        is_mainline=is_mainline,
+        settings=settings,
+        home_path=home_path,
+        iso_path=iso_path,
+    )
+
 
 def read_byte(event_bytes: bytes, offset: int):
     return np.ndarray((1,), ">B", event_bytes, offset)[0]
@@ -450,8 +478,12 @@ class Console:
             else:
                 path_given = self.path is not None
 
+                self.dolphin_info: Optional[DolphinInfo] = None
                 if self.path is None:
-                    self.path, self.is_mainline = default_dolphin_install_path()
+                    self.dolphin_info = default_dolphin_info()
+                    self.path = self.dolphin_info.install_dir
+                    self.is_mainline = self.dolphin_info.is_mainline
+                    self.dolphin_home_path = self.dolphin_info.home_path
 
                 self.exe_path = get_exe_path(self.path)
                 self.dolphin_version = get_dolphin_version(self.exe_path)
@@ -568,6 +600,9 @@ class Console:
         assert self.is_dolphin and self.path
 
         command = [self.exe_path]
+
+        if iso_path is None and self.dolphin_info:
+            iso_path = self.dolphin_info.iso_path
 
         if iso_path is not None:
             command.append("-e")
