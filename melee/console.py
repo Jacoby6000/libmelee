@@ -145,6 +145,11 @@ def default_dolphin_info() -> DolphinInfo:
         iso_path=iso_path,
     )
 
+# For backwards compatibility.
+def default_dolphin_install_path() -> tuple[str, bool]:
+    info = default_dolphin_info()
+    return info.install_dir, info.is_mainline
+
 
 def read_byte(event_bytes: bytes, offset: int):
     return np.ndarray((1,), ">B", event_bytes, offset)[0]
