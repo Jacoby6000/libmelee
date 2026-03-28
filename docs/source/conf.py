@@ -14,15 +14,16 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
+from melee.version import __version__
 
 # -- Project information -----------------------------------------------------
 
 project = 'libmelee'
-copyright = '2020, AltF4'
-author = 'AltF4'
+copyright = '2026, AltF4, Vlad Firoiu'
+author = 'AltF4, Vlad Firoiu'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.0'
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
