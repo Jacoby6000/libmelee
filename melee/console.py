@@ -350,8 +350,9 @@ class Console:
                  log_level: int = 3,  # WARN, see Source/Core/Common/Logging/Log.h
                  log_types: list[str] = ['SLIPPI'],
                  infinite_time: bool = False,
-                 use_exi_inputs=False,
-                 enable_ffw=False,
+                 instant_match_restart: bool = False,
+                 use_exi_inputs: bool = False,
+                 enable_ffw: bool = False,
                  dump_config: Optional[DumpConfig] = None,
                  debug: bool = False,
                 ):
@@ -394,6 +395,8 @@ class Console:
                 Mac as the path is hardcoded.
             log_level (int): Dolphin log level.
             infinite_time (bool): Set the game to infinite time mode.
+            instant_match_restart: (bool): Whether to instantly restart matches when they end.
+                This will pick a random legal stage to restart to.
             use_exi_inputs (bool): Enable gecko code for exi dolphin inputs. This is
                 necessary for fast-forward mode which ignores dolphin's normal polling.
                 Must be used with a compatible Ishiiruka branch such as
@@ -461,6 +464,7 @@ class Console:
         self.log_level = log_level
         self.log_types = log_types
         self.infinite_time = infinite_time
+        self.instant_match_restart = instant_match_restart
         self.use_exi_inputs = use_exi_inputs
         if enable_ffw and not use_exi_inputs:
             raise ValueError("Must use exi inputs to enable ffw mode.")
@@ -779,6 +783,9 @@ class Console:
         extra_codes = []
         if self.infinite_time:
             extra_codes.append("$Optional: Infinite Time Mode")
+        # if self.instant_match_restart:
+        if True:
+            extra_codes.append("$Optional: Instant Match")
         if self.use_exi_inputs:
             extra_codes.append("$Optional: Allow Bot Input Overrides")
         if self.enable_ffw:
