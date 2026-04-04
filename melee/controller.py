@@ -128,7 +128,7 @@ class Controller:
                 Blocks until the other side is ready
         """
         if self._type is not enums.ControllerType.STANDARD:
-            raise ValueError("Only standard controllers can be connected")
+            return True  # nothing to do here
 
         # Add ourselves to the console's controller list
         self._console.controllers.append(self)
