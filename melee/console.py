@@ -1524,9 +1524,12 @@ class Console:
                 gamestate.stage = enums.Stage.NO_STAGE
 
             # Stage Select Cursor X, Y
+            stage_select_cursor_x = np.ndarray((1,), ">f", event_bytes, 0x31)[0]
+            stage_select_cursor_y = np.ndarray((1,), ">f", event_bytes, 0x35)[0]
+
             for player in gamestate.players.values():
-                player.cursor.x = np.ndarray((1,), ">f", event_bytes, 0x31)[0]
-                player.cursor.y = np.ndarray((1,), ">f", event_bytes, 0x35)[0]
+                player.cursor.x = stage_select_cursor_x
+                player.cursor.y = stage_select_cursor_y
 
         # Frame count
         gamestate.frame = np.ndarray((1,), ">i", event_bytes, 0x39)[0]
