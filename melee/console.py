@@ -1548,13 +1548,17 @@ class Console:
         except TypeError:
             gamestate.menu_selection = 0
 
-        # Online costume chosen
-        try:
-            if gamestate.menu_state == enums.Menu.SLIPPI_ONLINE_CSS:
-                for i in range(4):
-                    gamestate.players[i+1].costume = np.ndarray((1,), ">B", event_bytes, 0x3F)[0]
-        except TypeError:
-            pass
+        # CSS costume indices from Melee RAM (Extract Menu Info gecko → payload offsets).
+        # P1 is always at 0x3F (0x803F0E09). P2–P4 use extended payload offsets when present.
+        if gamestate.menu_state in [enums.Menu.CHARACTER_SELECT, enums.Menu.SLIPPI_ONLINE_CSS]:
+            css_costume_offsets = {1: 0x3F, 2: 0x49, 3: 0x4A, 4: 0x4B}
+            for port, offset in css_costume_offsets.items():
+                try:
+                    if len(event_bytes) <= offset:
+                        continue
+                    gamestate.players[port].costume = np.ndarray((1,), ">B", event_bytes, offset)[0]
+                except (TypeError, KeyError):
+                    pass
 
         # This value is 0x05 in the nametag entry
         try:

@@ -9,8 +9,28 @@ import csv
 import os
 import math
 from collections import defaultdict
+from importlib.resources import files
+from pathlib import Path
 from melee.enums import Action, Character, AttackState
 from melee import stages
+
+
+def _open_package_csv(name: str):
+    # DESNOTE(jbarber, 2026-06-28): setuptools editable installs map Python modules to
+    # vendor/libmelee/melee while a stale wheel can leave site-packages/melee/*.py
+    # without the shipped *.csv package data; importlib.resources resolves from the
+    # active melee package root instead of __file__'s directory.
+    resource = files("melee").joinpath(name)
+    if resource.is_file():
+        return resource.open(newline="")
+    legacy = Path(__file__).resolve().parent / name
+    if legacy.is_file():
+        return legacy.open(newline="")
+    raise FileNotFoundError(
+        f"{name} is missing from the installed melee package "
+        f"(checked importlib.resources and {legacy})"
+    )
+
 
 class FrameData:
     """Set of helper functions and data structures for knowing Melee frame data
@@ -42,9 +62,8 @@ class FrameData:
             self.prevprojectilecount = {}
 
         #Read the existing framedata
-        path = os.path.dirname(os.path.realpath(__file__))
         self.framedata = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
-        with open(path + "/framedata.csv") as csvfile:
+        with _open_package_csv("framedata.csv") as csvfile:
             # A list of dicts containing the frame data
             csvreader = list(csv.DictReader(csvfile))
             # Build a series of nested dicts for faster read access
@@ -78,8 +97,7 @@ class FrameData:
 
         #read the character data csv
         self.characterdata = dict()
-        path = os.path.dirname(os.path.realpath(__file__))
-        with open(path + "/characterdata.csv") as csvfile:
+        with _open_package_csv("characterdata.csv") as csvfile:
             reader = csv.DictReader(csvfile)
             for line in reader:
                 del line["Character"]
