@@ -93,6 +93,31 @@ class MenuEventCostumeTests(unittest.TestCase):
         self.assertEqual(gamestate.menu_state, melee.Menu.POSTGAME_SCORES)
         self.assertEqual(gamestate.menu_scene, 0x0402)
 
+    def test_online_css_ignores_extended_costume_payload(self) -> None:
+        console = melee.Console(is_dolphin=False, allow_old_version=True)
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0008).to_bytes(2, byteorder="big")
+        payload[0x3F] = 3
+        payload[0x49] = 9
+        payload[0x4A] = 9
+        payload[0x4B] = 9
+        gamestate = melee.GameState(
+            players={
+                1: melee.PlayerState(costume=0),
+                2: melee.PlayerState(costume=7),
+                3: melee.PlayerState(costume=8),
+                4: melee.PlayerState(costume=9),
+            }
+        )
+
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.SLIPPI_ONLINE_CSS)
+        self.assertEqual(gamestate.players[1].costume, 3)
+        self.assertEqual(gamestate.players[2].costume, 0)
+        self.assertEqual(gamestate.players[3].costume, 0)
+        self.assertEqual(gamestate.players[4].costume, 0)
+
     def test_online_css_assigns_port_one_costume_only(self) -> None:
         console = melee.Console(is_dolphin=False, allow_old_version=True)
         payload = bytearray(0x50)
