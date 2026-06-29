@@ -1592,7 +1592,15 @@ class Console:
         # Is Holding CPU Slider
         try:
             for i in range(4):
-                gamestate.players[i+1].is_holding_cpu_slider = np.ndarray((1,), ">B", event_bytes, 0x45 + i)[0]
+                port = i + 1
+                holding = np.ndarray((1,), ">B", event_bytes, 0x45 + i)[0]
+                if (
+                    gamestate.menu_state == enums.Menu.CHARACTER_SELECT
+                    and gamestate.players[port].controller_status
+                    != enums.ControllerStatus.CONTROLLER_CPU
+                ):
+                    holding = 0
+                gamestate.players[port].is_holding_cpu_slider = holding
         except TypeError:
             pass
         except KeyError:

@@ -263,8 +263,12 @@ class MenuHelper():
         wiggleroom = 1.5
 
         # Set our CPU level correctly
-        if use_cpu and correct_character and (coin_down or cursor_y < 0) \
-            and (cpu_level != ai_state.cpu_level) or ai_state.is_holding_cpu_slider:
+        if use_cpu and (
+            correct_character
+            and (coin_down or cursor_y < 0)
+            and (cpu_level != ai_state.cpu_level)
+            or ai_state.is_holding_cpu_slider
+        ):
 
             assert not isSlippiCSS
 

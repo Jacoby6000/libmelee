@@ -155,5 +155,18 @@ class MenuEventCostumeTests(unittest.TestCase):
         self.assertEqual(gamestate.players[3].costume, 3)
         self.assertEqual(gamestate.players[4].costume, 4)
 
+    def test_offline_css_clears_cpu_slider_flag_for_human_ports(self) -> None:
+        console = melee.Console(is_dolphin=False, allow_old_version=True)
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0002).to_bytes(2, byteorder="big")
+        payload[0x25] = 0  # port 1 human
+        payload[0x45] = 1  # garbage slider-held byte
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.CHARACTER_SELECT)
+        self.assertEqual(gamestate.players[1].is_holding_cpu_slider, 0)
+
 if __name__ == '__main__':
     unittest.main()
