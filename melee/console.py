@@ -1439,6 +1439,8 @@ class Console:
 
         elif scene == 0x0202:
             gamestate.menu_state = enums.Menu.IN_GAME
+        elif scene == 0x0302:
+            gamestate.menu_state = enums.Menu.SUDDEN_DEATH
         elif scene == 0x0402:
             gamestate.menu_state = enums.Menu.POSTGAME_SCORES
         elif scene == 0x0001:
