@@ -12,3 +12,4 @@ from melee.menuhelper import *
 from melee.stages import *
 from melee.version import *
 from melee import menuhelper, techskill, framedata, stages
+from melee.master_hand import MasterHand

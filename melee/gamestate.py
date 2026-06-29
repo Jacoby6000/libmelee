@@ -64,6 +64,45 @@ class StadiumTransformation:
     event: StadiumTransformationEvent = StadiumTransformationEvent.FINISHED
     type: StadiumTransformationType = StadiumTransformationType.NORMAL
 
+# lbl_80479B10.slot in gmpause.c; gm_801A10FC sets 99 when the pause HUD is hidden.
+_MATCH_PAUSE_SLOT_INACTIVE = 99
+
+
+@dataclass(slots=True)
+class MatchPauseInfo:
+    """Live match pause state from lbl_8046B6A0 and lbl_80479B10 (Extract Menu Info gecko).
+
+    Updated when libmelee receives an Extract Menu Info menu payload (same cadence as
+    menu_scene / CSS fields). See vendor/libmelee/melee/GALE01r2.ini payload map.
+    """
+
+    raw_pause_slot: int = _MATCH_PAUSE_SLOT_INACTIVE
+    """lbl_80479B10.slot low byte: controller index 0-3 while paused, 99 when inactive."""
+    pauser_port_index: int = -1
+    """lbl_8046B6A0.pauser (s8): last port that opened pause (-1 when unset)."""
+    pause_timer_frames: int = 0
+    """lbl_8046B6A0.pause_timer: frames until unpause is allowed."""
+    pause_cooldown_frames: int = 0
+    """lbl_8046B6A0.unk_4: frames until pause can open again after unpause."""
+    hud_enabled: bool = False
+    """lbl_8046B6A0.hud_enabled: match HUD/timer active (required to pause)."""
+    match_over: bool = False
+    """lbl_8046B6A0.match_over: match finished."""
+    match_end_pending: bool = False
+    """lbl_8046B6A0.unk_0: match-end load sequence armed."""
+
+    @property
+    def is_paused(self) -> bool:
+        return self.raw_pause_slot != _MATCH_PAUSE_SLOT_INACTIVE
+
+    @property
+    def pause_port(self) -> int | None:
+        """1-based controller port for the active pause HUD, or None."""
+        if not self.is_paused:
+            return None
+        return self.raw_pause_slot + 1
+
+
 @dataclass(slots=True)
 class GameState:
     """Represents the state of a running game of Melee at a given moment in time"""
@@ -81,6 +120,8 @@ class GameState:
     """enums.MenuState: The current menu scene, such as IN_GAME, or STAGE_SELECT"""
     menu_scene: int | None = None
     """Raw 16-bit scene halfword from the latest Extract Menu Info payload (offset 0x1), or None before any menu event."""
+    match_pause: MatchPauseInfo = field(default_factory=MatchPauseInfo)
+    """Pause/match-lifecycle bytes from lbl_8046B6A0 (Extract Menu Info payload 0x4C-0x52)."""
     submenu: enums.SubMenu = enums.SubMenu.UNKNOWN_SUBMENU
     """(enums.SubMenu): The current sub-menu"""
     players: dict[int, 'PlayerState'] = field(default_factory=dict)

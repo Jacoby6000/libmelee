@@ -168,5 +168,41 @@ class MenuEventCostumeTests(unittest.TestCase):
         self.assertEqual(gamestate.menu_state, melee.Menu.CHARACTER_SELECT)
         self.assertEqual(gamestate.players[1].is_holding_cpu_slider, 0)
 
+    def test_match_pause_payload_parsed(self) -> None:
+        console = melee.Console(is_dolphin=False, allow_old_version=True)
+        payload = bytearray(0x60)
+        payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        payload[0x4C] = 1  # pause slot port index 1 -> port 2
+        payload[0x4D] = 0xFF  # pauser -1 as s8
+        payload[0x4E] = 10
+        payload[0x4F] = 3
+        payload[0x50] = 1
+        payload[0x51] = 0
+        payload[0x52] = 0
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertTrue(gamestate.match_pause.is_paused)
+        self.assertEqual(gamestate.match_pause.pause_port, 2)
+        self.assertEqual(gamestate.match_pause.pauser_port_index, -1)
+        self.assertEqual(gamestate.match_pause.pause_timer_frames, 10)
+        self.assertEqual(gamestate.match_pause.pause_cooldown_frames, 3)
+        self.assertTrue(gamestate.match_pause.hud_enabled)
+        self.assertFalse(gamestate.match_pause.match_over)
+        self.assertFalse(gamestate.match_pause.match_end_pending)
+
+    def test_match_pause_inactive_slot(self) -> None:
+        console = melee.Console(is_dolphin=False, allow_old_version=True)
+        payload = bytearray(0x60)
+        payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        payload[0x4C] = 99
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertFalse(gamestate.match_pause.is_paused)
+        self.assertIsNone(gamestate.match_pause.pause_port)
+
 if __name__ == '__main__':
     unittest.main()

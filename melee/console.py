@@ -31,6 +31,7 @@ from melee.gamestate import GameState, Projectile, PlayerState
 from melee.slippstream import SlippstreamClient, EventType
 from melee.slpfilestreamer import SLPFileStreamer
 from melee import stages
+from melee.master_hand import MasterHand
 
 
 class SlippiVersionTooLow(Exception):
@@ -477,6 +478,7 @@ class Console:
         # Half-completed gamestate not yet ready to add to the list
         self._temp_gamestate = None
         self._process = None
+        self._master_hand: Optional["MasterHand"] = None
 
         if self.is_dolphin:
             self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)
@@ -553,6 +555,19 @@ class Console:
                 for key, value in line.items():
                     line[key] = float(value)
                 self.characterdata[enums.Character(line["CharacterIndex"])] = line
+
+    @property
+    def master_hand(self) -> MasterHand:
+        """Direct lbl_8046B6A0 RAM writes via dolphin-memory-engine.
+
+        Only valid while Dolphin emulation is running. SLP file replay has no RAM
+        backing and cannot use MasterHand.
+        """
+        if not self.is_dolphin:
+            raise RuntimeError("MasterHand requires a live Dolphin console, not SLP replay.")
+        if self._master_hand is None:
+            self._master_hand = MasterHand()
+        return self._master_hand
 
     def connect(self):
         """ Connects to the Slippi server (dolphin or wii).
@@ -1610,6 +1625,33 @@ class Console:
         for port in gamestate.players:
             if gamestate.players[port].controller_status != enums.ControllerStatus.CONTROLLER_CPU:
                 gamestate.players[port].cpu_level = 0
+
+        self.__parse_match_pause_menu_payload(event_bytes, gamestate)
+
+    def __parse_match_pause_menu_payload(
+        self, event_bytes: bytes, gamestate: GameState,
+    ) -> None:
+        """lbl_8046B6A0 + lbl_80479B10 fields from extended Extract Menu Info payload."""
+        if len(event_bytes) <= 0x52:
+            return
+        try:
+            pause_slot = int(np.ndarray((1,), ">B", event_bytes, 0x4C)[0])
+            pauser = int(np.ndarray((1,), ">b", event_bytes, 0x4D)[0])
+            pause_timer = int(np.ndarray((1,), ">B", event_bytes, 0x4E)[0])
+            pause_cooldown = int(np.ndarray((1,), ">B", event_bytes, 0x4F)[0])
+            hud_enabled = int(np.ndarray((1,), ">B", event_bytes, 0x50)[0]) != 0
+            match_over = int(np.ndarray((1,), ">B", event_bytes, 0x51)[0]) != 0
+            match_end_pending = int(np.ndarray((1,), ">B", event_bytes, 0x52)[0]) != 0
+        except TypeError:
+            return
+
+        gamestate.match_pause.raw_pause_slot = pause_slot
+        gamestate.match_pause.pauser_port_index = pauser
+        gamestate.match_pause.pause_timer_frames = pause_timer
+        gamestate.match_pause.pause_cooldown_frames = pause_cooldown
+        gamestate.match_pause.hud_enabled = hud_enabled
+        gamestate.match_pause.match_over = match_over
+        gamestate.match_pause.match_end_pending = match_end_pending
 
     def __fod_platforms(self, gamestate: GameState, event_bytes: bytes):
         if self._fod_platforms is None:
