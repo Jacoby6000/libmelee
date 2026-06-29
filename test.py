@@ -78,8 +78,20 @@ class MenuEventCostumeTests(unittest.TestCase):
         console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
 
         self.assertEqual(gamestate.menu_state, melee.Menu.CHARACTER_SELECT)
+        self.assertEqual(gamestate.menu_scene, 0x0002)
         self.assertEqual(gamestate.players[1].costume, 4)
         self.assertEqual(gamestate.players[2].costume, 0)
+
+    def test_postgame_scene_maps_to_postgame_scores(self) -> None:
+        console = melee.Console(is_dolphin=False, allow_old_version=True)
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0402).to_bytes(2, byteorder="big")
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.POSTGAME_SCORES)
+        self.assertEqual(gamestate.menu_scene, 0x0402)
 
     def test_online_css_assigns_port_one_costume_only(self) -> None:
         console = melee.Console(is_dolphin=False, allow_old_version=True)

@@ -79,6 +79,8 @@ class GameState:
 
     menu_state: enums.Menu = enums.Menu.IN_GAME
     """enums.MenuState: The current menu scene, such as IN_GAME, or STAGE_SELECT"""
+    menu_scene: int | None = None
+    """Raw 16-bit scene halfword from the latest Extract Menu Info payload (offset 0x1), or None before any menu event."""
     submenu: enums.SubMenu = enums.SubMenu.UNKNOWN_SUBMENU
     """(enums.SubMenu): The current sub-menu"""
     players: dict[int, 'PlayerState'] = field(default_factory=dict)
