@@ -3,12 +3,13 @@
 Mirrors gecko/ExtractMenuInfo/SendMenuFrame.asm. EXI transfer length is 0x4C
 (command byte at 0x0 plus payload bytes 0x1–0x4B). Offline CSS CPU fields:
 
-- 0x41–0x44: CPU level bytes (currently CSSData->players[i].cpu_level +0x0F — may not
-  match live CSS slider; use gecko/config.yaml debug overlay to find the right field)
+- 0x41–0x44: CPU level bytes (CSSData->players[i].cpu_level +0x0F)
 - 0x45–0x48: CSSDoor.is_hold_cpu_slider (+0x12) at mnCharSel_803F0DFC.doors[i]
+- 0x4C–0x52: live match pause bytes (when this fork's payload is active)
+- 0x54+: optional crowd-control watch payload, when built from gecko/config.yaml.
 
 See doldecomp/melee src/melee/mn/types.h (PlayerInitData, CSSDoor).
-Pause bytes at 0x4C+ are parsed when present but not emitted by the current asm build.
+Watch values are exposed on ``gamestate.custom["gecko_watch_values"]``.
 """
 
 from __future__ import annotations
@@ -22,10 +23,10 @@ from melee import enums
 if TYPE_CHECKING:
     from melee.gamestate import GameState, PlayerState
 
-EXI_TRANSFER_LEN = 0x4C
-"""Bytes sent by SendMenuFrame (PAYLOAD_LEN 0x4B + command at 0x0)."""
-WATCH_PAYLOAD_COUNT_OFFSET = 0x4C
-WATCH_PAYLOAD_VALUES_OFFSET = 0x50
+EXI_TRANSFER_LEN = 0x53
+"""Base bytes sent by SendMenuFrame through the fixed pause fields."""
+WATCH_PAYLOAD_COUNT_OFFSET = 0x54
+WATCH_PAYLOAD_VALUES_OFFSET = 0x58
 WATCH_PAYLOAD_VALUE_SIZE = 4
 
 # Scene halfwords (offset 0x1, big-endian u16).
@@ -279,4 +280,4 @@ def _apply_watch_payload_fields(event_bytes: bytes, gamestate: GameState) -> Non
         _read_u32(event_bytes, WATCH_PAYLOAD_VALUES_OFFSET + (index * WATCH_PAYLOAD_VALUE_SIZE))
         for index in range(count)
     )
-    gamestate.custom["menu_watch_values"] = values
+    gamestate.custom["gecko_watch_values"] = values
