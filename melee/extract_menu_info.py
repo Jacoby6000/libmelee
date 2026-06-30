@@ -64,6 +64,13 @@ def scene_to_menu_state(scene: int) -> enums.Menu:
     return enums.Menu.UNKNOWN_MENU
 
 
+def scene_to_game_mode(scene: int) -> enums.GameMode:
+    try:
+        return enums.GameMode(scene & 0xFF)
+    except ValueError:
+        return enums.GameMode.UNKNOWN_GAME_MODE
+
+
 def menu_state_needs_css_players(menu_state: enums.Menu) -> bool:
     return menu_state in (
         enums.Menu.CHARACTER_SELECT,
@@ -107,6 +114,7 @@ def apply_extract_menu_info_payload(event_bytes: bytes, gamestate: GameState) ->
     """Update *gamestate* from a SendMenuFrame EXI buffer."""
     scene = _read_u16(event_bytes, 0x1)
     gamestate.menu_scene = scene
+    gamestate.game_mode = scene_to_game_mode(scene)
     menu_state = scene_to_menu_state(scene)
     gamestate.menu_state = menu_state
 

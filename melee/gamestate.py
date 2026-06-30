@@ -120,6 +120,8 @@ class GameState:
     """enums.MenuState: The current menu scene, such as IN_GAME, or STAGE_SELECT"""
     menu_scene: int | None = None
     """Raw 16-bit scene halfword from the latest Extract Menu Info payload (offset 0x1), or None before any menu event."""
+    game_mode: enums.GameMode = enums.GameMode.VS
+    """enums.GameMode: Current Melee game mode decoded from the low byte of menu_scene."""
     match_pause: MatchPauseInfo = field(default_factory=MatchPauseInfo)
     """Pause bytes at payload 0x4C–0x52 when EXI length exceeds 0x4C (not sent by current gecko build)."""
     submenu: enums.SubMenu = enums.SubMenu.UNKNOWN_SUBMENU

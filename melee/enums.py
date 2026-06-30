@@ -40,6 +40,124 @@ class Menu(Enum):
     PRESS_START = 7
     UNKNOWN_MENU = 0xff
 
+class GameMode(Enum):
+    """Melee game mode kind.
+
+    These values mirror doldecomp's ``GameModeKind`` enum and are the low byte
+    of the Extract Menu Info scene halfword.
+    """
+    TITLE = 0x00
+    MENU = 0x01
+    VS = 0x02
+    CLASSIC = 0x03
+    ADVENTURE = 0x04
+    ALLSTAR = 0x05
+    DEBUG = 0x06
+    DEBUG_SOUND_TEST = 0x07
+    HANYU_CSS = 0x08
+    HANYU_SSS = 0x09
+    CAMERA_MODE = 0x0A
+    TOY_GALLERY = 0x0B
+    TOY_LOTTERY = 0x0C
+    TOY_COLLECTION = 0x0D
+    DEBUG_VS = 0x0E
+    TARGET_TEST = 0x0F
+    SUPER_SUDDEN_DEATH_VS = 0x10
+    INVISIBLE_VS = 0x11
+    SLOMO_VS = 0x12
+    LIGHTNING_VS = 0x13
+    CHALLENGER_APPROACH = 0x14
+    CLASSIC_GAME_OVER = 0x15
+    ADVENTURE_GAME_OVER = 0x16
+    ALLSTAR_GAME_OVER = 0x17
+    OPENING_MOVIE = 0x18
+    DEBUG_CUTSCENE = 0x19
+    DEBUG_GAME_OVER = 0x1A
+    TOURNAMENT = 0x1B
+    TRAINING = 0x1C
+    TINY_VS = 0x1D
+    GIANT_VS = 0x1E
+    STAMINA_VS = 0x1F
+    HOME_RUN_CONTEST = 0x20
+    TEN_MAN_VS = 0x21
+    HUNDRED_MAN_VS = 0x22
+    THREE_MIN_VS = 0x23
+    FIFTEEN_MIN_VS = 0x24
+    ENDLESS_VS = 0x25
+    CRUEL_VS = 0x26
+    PROGRESSIVE_SCAN = 0x27
+    BOOT = 0x28
+    MEMCARD = 0x29
+    FIXED_CAMERA_VS = 0x2A
+    EVENT = 0x2B
+    SINGLE_BUTTON_VS = 0x2C
+    COUNT = 0x2D
+    UNKNOWN_GAME_MODE = 0xFF
+
+class GameScene(Enum):
+    """Melee game scene kind from doldecomp's ``GameSceneKind`` enum."""
+    TITLE = 0x00
+    MENU = 0x01
+    VS = 0x02
+    SUDDEN_DEATH = 0x03
+    TRAINING_MODE = 0x04
+    RESULTS = 0x05
+    UNUSED_0X6 = 0x06
+    DEBUG_MENU = 0x07
+    CSS = 0x08
+    SSS = 0x09
+    UNUSED_0XA = 0x0A
+    TOY_GALLERY = 0x0B
+    TOY_LOTTERY = 0x0C
+    TOY_COLLECTION = 0x0D
+    INTRO_NORMAL = 0x0E
+    REGEND_TOYFALL = 0x0F
+    REGEND_CONGRATS = 0x10
+    CUTSCENE_LUIGI = 0x11
+    CUTSCENE_BRINSTAR = 0x12
+    CUTSCENE_EXPLOSION = 0x13
+    CUTSCENE_THREE_KIRBYS = 0x14
+    CUTSCENE_GIANT_KIRBY = 0x15
+    CUTSCENE_STARFOX = 0x16
+    CUTSCENE_FZERO = 0x17
+    CUTSCENE_METAL = 0x18
+    CUTSCENE_BOWSER_TOY = 0x19
+    CUTSCENE_GIGA_TRANSFORM = 0x1A
+    CUTSCENE_GIGA_DEFEATED = 0x1B
+    MOVIE_OPENING = 0x1C
+    MOVIE_END = 0x1D
+    MOVIE_HOWTO = 0x1E
+    MOVIE_OMAKE15 = 0x1F
+    INTRO_EASY = 0x20
+    INTRO_ALLSTAR = 0x21
+    GAMEOVER = 0x22
+    COMING_SOON = 0x23
+    TOURNAMENT_SETUP = 0x24
+    TOURNAMENT_BRACKET = 0x25
+    TOURNAMENT_ALT = 0x26
+    PRIZE_INTERFACE = 0x27
+    PROGRESSIVE_SCAN = 0x28
+    APPROACH = 0x29
+    MEMCARD = 0x2A
+    STAFFROLL = 0x2B
+    CAMERA_VS = 0x2C
+    COUNT = 0x2D
+    UNKNOWN_GAME_SCENE = 0xFF
+
+class MatchOutcome(Enum):
+    """Melee match outcome kind from doldecomp's ``MatchOutcome`` enum."""
+    NONE = 0x00
+    TIMEOUT = 0x01
+    ELIMINATION = 0x02
+    UNKNOWN_0X3 = 0x03
+    UNKNOWN_0X4 = 0x04
+    UNKNOWN_0X5 = 0x05
+    UNKNOWN_0X6 = 0x06
+    LRASTART = 0x07
+    RETRY = 0x08
+    UNKNOWN_0X9 = 0x09
+    UNKNOWN_MATCH_OUTCOME = 0xFF
+
 class SubMenu(Enum):
     """Sub-menu of a primary menu"""
     MAIN_MENU_SUBMENU = 0
