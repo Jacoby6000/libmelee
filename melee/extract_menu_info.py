@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 
 EXI_TRANSFER_LEN = 0x4C
 """Bytes sent by SendMenuFrame (PAYLOAD_LEN 0x4B + command at 0x0)."""
+WATCH_PAYLOAD_COUNT_OFFSET = 0x4C
+WATCH_PAYLOAD_VALUES_OFFSET = 0x50
+WATCH_PAYLOAD_VALUE_SIZE = 4
 
 # Scene halfwords (offset 0x1, big-endian u16).
 SCENE_PRESS_START = 0x0000
@@ -80,6 +83,10 @@ def _read_i32(event_bytes: bytes, offset: int) -> int:
     return int(np.ndarray((1,), ">i", event_bytes, offset)[0])
 
 
+def _read_u32(event_bytes: bytes, offset: int) -> int:
+    return int(np.ndarray((1,), ">I", event_bytes, offset)[0])
+
+
 def _read_f32(event_bytes: bytes, offset: int) -> float:
     return float(np.ndarray((1,), ">f", event_bytes, offset)[0])
 
@@ -127,6 +134,7 @@ def apply_extract_menu_info_payload(event_bytes: bytes, gamestate: GameState) ->
     _apply_online_nametag_submenu(event_bytes, gamestate)
     _apply_cpu_level_fields(event_bytes, gamestate)
     _apply_cpu_slider_fields(event_bytes, gamestate)
+    _apply_watch_payload_fields(event_bytes, gamestate)
     _apply_match_pause_fields(event_bytes, gamestate)
 
 
@@ -258,3 +266,17 @@ def _apply_match_pause_fields(event_bytes: bytes, gamestate: GameState) -> None:
     pause.hud_enabled = hud_enabled
     pause.match_over = match_over
     pause.match_end_pending = match_end_pending
+
+
+def _apply_watch_payload_fields(event_bytes: bytes, gamestate: GameState) -> None:
+    if len(event_bytes) <= WATCH_PAYLOAD_COUNT_OFFSET:
+        return
+    count = _read_u8(event_bytes, WATCH_PAYLOAD_COUNT_OFFSET)
+    values_end = WATCH_PAYLOAD_VALUES_OFFSET + (count * WATCH_PAYLOAD_VALUE_SIZE)
+    if count == 0 or len(event_bytes) < values_end:
+        return
+    values = tuple(
+        _read_u32(event_bytes, WATCH_PAYLOAD_VALUES_OFFSET + (index * WATCH_PAYLOAD_VALUE_SIZE))
+        for index in range(count)
+    )
+    gamestate.custom["menu_watch_values"] = values
