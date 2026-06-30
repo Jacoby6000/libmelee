@@ -121,7 +121,7 @@ class GameState:
     menu_scene: int | None = None
     """Raw 16-bit scene halfword from the latest Extract Menu Info payload (offset 0x1), or None before any menu event."""
     match_pause: MatchPauseInfo = field(default_factory=MatchPauseInfo)
-    """Pause/match-lifecycle bytes from lbl_8046B6A0 (Extract Menu Info payload 0x4C-0x52)."""
+    """Pause bytes at payload 0x4C–0x52 when EXI length exceeds 0x4C (not sent by current gecko build)."""
     submenu: enums.SubMenu = enums.SubMenu.UNKNOWN_SUBMENU
     """(enums.SubMenu): The current sub-menu"""
     players: dict[int, 'PlayerState'] = field(default_factory=dict)
