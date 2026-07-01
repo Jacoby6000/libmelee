@@ -64,10 +64,6 @@ class StadiumTransformation:
     event: StadiumTransformationEvent = StadiumTransformationEvent.FINISHED
     type: StadiumTransformationType = StadiumTransformationType.NORMAL
 
-# lbl_80479B10.slot in gmpause.c; gm_801A10FC sets 99 when the pause HUD is hidden.
-_MATCH_PAUSE_SLOT_INACTIVE = 99
-
-
 @dataclass(slots=True)
 class MatchPauseInfo:
     """Live match pause state from lbl_8046B6A0 and lbl_80479B10 (Extract Menu Info gecko).
@@ -76,10 +72,14 @@ class MatchPauseInfo:
     menu_scene / CSS fields). See vendor/libmelee/melee/GALE01r2.ini payload map.
     """
 
-    raw_pause_slot: int = _MATCH_PAUSE_SLOT_INACTIVE
-    """lbl_80479B10.slot low byte: controller index 0-3 while paused, 99 when inactive."""
+    raw_pause_slot: int = 0
+    """lbl_80479B10.slot low byte. Observed as 0 during normal unpaused play."""
     pauser_port_index: int = -1
     """lbl_8046B6A0.pauser (s8): last port that opened pause (-1 when unset)."""
+    pause_open_event: bool = False
+    """True only for the explicit pause-open hook payload."""
+    pause_close_event: bool = False
+    """True only for the explicit pause-close hook payload."""
     pause_timer_frames: int = 0
     """lbl_8046B6A0.pause_timer: frames until unpause is allowed."""
     pause_cooldown_frames: int = 0
@@ -93,11 +93,11 @@ class MatchPauseInfo:
 
     @property
     def is_paused(self) -> bool:
-        return self.raw_pause_slot != _MATCH_PAUSE_SLOT_INACTIVE
+        return self.pause_open_event
 
     @property
     def pause_port(self) -> int | None:
-        """1-based controller port for the active pause HUD, or None."""
+        """1-based controller port from the raw pause slot, when paused."""
         if not self.is_paused:
             return None
         return self.raw_pause_slot + 1

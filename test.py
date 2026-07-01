@@ -253,8 +253,9 @@ class MenuEventCostumeTests(unittest.TestCase):
         gamestate = melee.GameState()
         console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
 
-        self.assertTrue(gamestate.match_pause.is_paused)
-        self.assertEqual(gamestate.match_pause.pause_port, 2)
+        self.assertFalse(gamestate.match_pause.is_paused)
+        self.assertIsNone(gamestate.match_pause.pause_port)
+        self.assertEqual(gamestate.match_pause.raw_pause_slot, 1)
         self.assertEqual(gamestate.match_pause.pauser_port_index, -1)
         self.assertEqual(gamestate.match_pause.pause_timer_frames, 10)
         self.assertEqual(gamestate.match_pause.pause_cooldown_frames, 3)
@@ -262,17 +263,20 @@ class MenuEventCostumeTests(unittest.TestCase):
         self.assertFalse(gamestate.match_pause.match_over)
         self.assertFalse(gamestate.match_pause.match_end_pending)
 
-    def test_match_pause_inactive_slot(self) -> None:
+    def test_match_pause_unpaused_cooldown(self) -> None:
         console = melee.Console(is_dolphin=False, allow_old_version=True)
         payload = bytearray(0x60)
         payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
-        payload[0x4C] = 99
+        payload[0x4C] = 0
+        payload[0x4F] = 6
+        payload[0x50] = 1
 
         gamestate = melee.GameState()
         console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
 
         self.assertFalse(gamestate.match_pause.is_paused)
         self.assertIsNone(gamestate.match_pause.pause_port)
+        self.assertEqual(gamestate.match_pause.pause_cooldown_frames, 6)
 
 if __name__ == '__main__':
     unittest.main()
