@@ -31,6 +31,20 @@ from melee.gamestate import GameState, Projectile, PlayerState
 from melee.slippstream import SlippstreamClient, EventType
 from melee.slpfilestreamer import SLPFileStreamer
 from melee import stages
+from melee.master_hand import MasterHand
+from melee.extract_menu_info import (
+    EXI_TRANSFER_LEN,
+    PAYLOAD_KIND_NORMAL,
+    PAYLOAD_KIND_PAUSE_OPEN,
+    PAYLOAD_KIND_PAUSE_CLOSE,
+    SCENE_IN_GAME,
+    SCENE_ONLINE_IN_GAME,
+    SCENE_SUDDEN_DEATH,
+    payload_kind,
+    WATCH_PAYLOAD_COUNT_OFFSET,
+    WATCH_PAYLOAD_VALUE_SIZE,
+    WATCH_PAYLOAD_VALUES_OFFSET,
+)
 
 
 class SlippiVersionTooLow(Exception):
@@ -53,6 +67,24 @@ def _ignore_fifos(src, names):
 
 def _copytree_safe(src, dst):
     shutil.copytree(src, dst, ignore=_ignore_fifos)
+
+
+def _expected_in_game_menu_event_size(event_bytes: bytes) -> Optional[int]:
+    if len(event_bytes) < EXI_TRANSFER_LEN:
+        return None
+    scene = int(np.ndarray((1,), ">H", event_bytes, 0x1)[0])
+    if scene not in (SCENE_IN_GAME, SCENE_ONLINE_IN_GAME, SCENE_SUDDEN_DEATH):
+        return None
+    kind = payload_kind(event_bytes)
+    if kind in (PAYLOAD_KIND_PAUSE_OPEN, PAYLOAD_KIND_PAUSE_CLOSE):
+        return EXI_TRANSFER_LEN
+    if kind != PAYLOAD_KIND_NORMAL or len(event_bytes) <= WATCH_PAYLOAD_COUNT_OFFSET:
+        return EXI_TRANSFER_LEN
+    watch_count = int(np.ndarray((1,), ">B", event_bytes, WATCH_PAYLOAD_COUNT_OFFSET)[0])
+    watch_event_size = WATCH_PAYLOAD_VALUES_OFFSET + (watch_count * WATCH_PAYLOAD_VALUE_SIZE)
+    if watch_count > 0 and len(event_bytes) >= watch_event_size:
+        return watch_event_size
+    return EXI_TRANSFER_LEN
 
 @dataclasses.dataclass
 class DolphinInfo:
@@ -477,6 +509,7 @@ class Console:
         # Half-completed gamestate not yet ready to add to the list
         self._temp_gamestate = None
         self._process = None
+        self._master_hand: Optional["MasterHand"] = None
 
         if self.is_dolphin:
             self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)
@@ -553,6 +586,19 @@ class Console:
                 for key, value in line.items():
                     line[key] = float(value)
                 self.characterdata[enums.Character(line["CharacterIndex"])] = line
+
+    @property
+    def master_hand(self) -> MasterHand:
+        """Direct lbl_8046B6A0 RAM writes via dolphin-memory-engine.
+
+        Only valid while Dolphin emulation is running. SLP file replay has no RAM
+        backing and cannot use MasterHand.
+        """
+        if not self.is_dolphin:
+            raise RuntimeError("MasterHand requires a live Dolphin console, not SLP replay.")
+        if self._master_hand is None:
+            self._master_hand = MasterHand()
+        return self._master_hand
 
     def connect(self):
         """ Connects to the Slippi server (dolphin or wii).
@@ -969,6 +1015,17 @@ class Console:
 
             if event_type == EventType.MENU_EVENT:
                 # https://github.com/project-slippi/dolphin/issues/31
+                expected_menu_event_size = _expected_in_game_menu_event_size(event_bytes)
+                if expected_menu_event_size is not None:
+                    is_pause_event = payload_kind(event_bytes) in (
+                        PAYLOAD_KIND_PAUSE_OPEN,
+                        PAYLOAD_KIND_PAUSE_CLOSE,
+                    )
+                    self.__handle_slippstream_menu_event(event_bytes, gamestate)
+                    if is_pause_event:
+                        return True
+                    event_bytes = event_bytes[expected_menu_event_size:]
+                    continue
                 logging.error("Got a menu event in the middle of a frame. Continuing anyway.")
                 self.__handle_slippstream_menu_event(event_bytes, gamestate)
                 return True

@@ -153,5 +153,87 @@ class MenuEventPayloadTests(unittest.TestCase):
         self.assertAlmostEqual(float(gamestate.players[1].cursor.x), 0.0)
         self.assertAlmostEqual(float(gamestate.players[1].cursor.y), 0.0)
 
+
+class MenuEventPauseTests(unittest.TestCase):
+    def _console(self):
+        return melee.Console(is_dolphin=False, allow_old_version=True)
+
+    def _send(self, payload, gamestate=None):
+        console = self._console()
+        gamestate = gamestate or melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+        return gamestate
+
+    def test_match_pause_payload_parsed(self) -> None:
+        payload = bytearray(0x60)
+        payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        payload[0x4C] = 1  # pause slot port index 1 -> port 2
+        payload[0x4D] = 0xFF  # pauser -1 as s8
+        payload[0x4E] = 10
+        payload[0x4F] = 3
+        payload[0x50] = 1
+        payload[0x51] = 0
+        payload[0x52] = 0
+
+        gamestate = self._send(payload)
+
+        self.assertFalse(gamestate.match_pause.is_paused)
+        self.assertIsNone(gamestate.match_pause.pause_port)
+        self.assertEqual(gamestate.match_pause.raw_pause_slot, 1)
+        self.assertEqual(gamestate.match_pause.pauser_port_index, -1)
+        self.assertEqual(gamestate.match_pause.pause_timer_frames, 10)
+        self.assertEqual(gamestate.match_pause.pause_cooldown_frames, 3)
+        self.assertTrue(gamestate.match_pause.hud_enabled)
+        self.assertFalse(gamestate.match_pause.match_over)
+        self.assertFalse(gamestate.match_pause.match_end_pending)
+
+    def test_match_pause_unpaused_cooldown(self) -> None:
+        payload = bytearray(0x60)
+        payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        payload[0x4C] = 0
+        payload[0x4F] = 6
+        payload[0x50] = 1
+
+        gamestate = self._send(payload)
+
+        self.assertFalse(gamestate.match_pause.is_paused)
+        self.assertIsNone(gamestate.match_pause.pause_port)
+        self.assertEqual(gamestate.match_pause.pause_cooldown_frames, 6)
+
+    def test_pause_open_event_marks_paused(self) -> None:
+        payload = bytearray(0x60)
+        payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        payload[0x4C] = 1  # port index 1 -> port 2
+        payload[0x53] = 1  # pause-open discriminator
+
+        gamestate = self._send(payload)
+
+        self.assertTrue(gamestate.match_pause.is_paused)
+        self.assertEqual(gamestate.match_pause.pause_port, 2)
+        self.assertTrue(gamestate.match_pause.pause_open_event)
+        self.assertFalse(gamestate.match_pause.pause_close_event)
+        # Pause open/close payloads short-circuit before CSS/costume/cpu parsing.
+        self.assertEqual(gamestate.players, {})
+
+    def test_pause_close_event_clears_paused(self) -> None:
+        gamestate = melee.GameState()
+
+        open_payload = bytearray(0x60)
+        open_payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        open_payload[0x4C] = 0
+        open_payload[0x53] = 1  # pause-open
+        self._send(open_payload, gamestate)
+        self.assertTrue(gamestate.match_pause.is_paused)
+
+        close_payload = bytearray(0x60)
+        close_payload[0x1:0x3] = (0x0202).to_bytes(2, byteorder="big")
+        close_payload[0x4C] = 0
+        close_payload[0x53] = 2  # pause-close
+        self._send(close_payload, gamestate)
+
+        self.assertFalse(gamestate.match_pause.is_paused)
+        self.assertFalse(gamestate.match_pause.pause_open_event)
+        self.assertTrue(gamestate.match_pause.pause_close_event)
+
 if __name__ == '__main__':
     unittest.main()

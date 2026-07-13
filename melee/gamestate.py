@@ -65,6 +65,44 @@ class StadiumTransformation:
     type: StadiumTransformationType = StadiumTransformationType.NORMAL
 
 @dataclass(slots=True)
+class MatchPauseInfo:
+    """Live match pause state from lbl_8046B6A0 and lbl_80479B10 (Extract Menu Info gecko).
+
+    Updated when libmelee receives an Extract Menu Info menu payload (same cadence as
+    menu_scene / CSS fields). See vendor/libmelee/melee/GALE01r2.ini payload map.
+    """
+
+    raw_pause_slot: int = 0
+    """lbl_80479B10.slot low byte. Observed as 0 during normal unpaused play."""
+    pauser_port_index: int = -1
+    """lbl_8046B6A0.pauser (s8): last port that opened pause (-1 when unset)."""
+    pause_open_event: bool = False
+    """True only for the explicit pause-open hook payload."""
+    pause_close_event: bool = False
+    """True only for the explicit pause-close hook payload."""
+    pause_timer_frames: int = 0
+    """lbl_8046B6A0.pause_timer: frames until unpause is allowed."""
+    pause_cooldown_frames: int = 0
+    """lbl_8046B6A0.unk_4: frames until pause can open again after unpause."""
+    hud_enabled: bool = False
+    """lbl_8046B6A0.hud_enabled: match HUD/timer active (required to pause)."""
+    match_over: bool = False
+    """lbl_8046B6A0.match_over: match finished."""
+    match_end_pending: bool = False
+    """lbl_8046B6A0.unk_0: match-end load sequence armed."""
+
+    @property
+    def is_paused(self) -> bool:
+        return self.pause_open_event
+
+    @property
+    def pause_port(self) -> int | None:
+        """1-based controller port from the raw pause slot, when paused."""
+        if not self.is_paused:
+            return None
+        return self.raw_pause_slot + 1
+
+@dataclass(slots=True)
 class GameState:
     """Represents the state of a running game of Melee at a given moment in time"""
     frame: int = -10000
@@ -79,6 +117,8 @@ class GameState:
 
     menu_state: enums.Menu = enums.Menu.IN_GAME
     """enums.MenuState: The current menu scene, such as IN_GAME, or STAGE_SELECT"""
+    match_pause: MatchPauseInfo = field(default_factory=MatchPauseInfo)
+    """Pause bytes at payload 0x4C–0x52 when EXI length exceeds 0x4C (not sent by current gecko build)."""
     submenu: enums.SubMenu = enums.SubMenu.UNKNOWN_SUBMENU
     """(enums.SubMenu): The current sub-menu"""
     players: dict[int, 'PlayerState'] = field(default_factory=dict)

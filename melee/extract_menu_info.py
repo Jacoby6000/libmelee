@@ -1,12 +1,16 @@
 """Extract Menu Info gecko payload layout and parsing (crowd-control fork).
 
-Mirrors gecko/ExtractMenuInfo/SendMenuFrame.asm. EXI transfer length is 0x4C
-(command byte at 0x0 plus payload bytes 0x1–0x4B). Offline CSS CPU fields:
+Mirrors gecko/ExtractMenuInfo/SendMenuFrame.asm. Base EXI transfer length is
+0x54 (command byte at 0x0 plus payload bytes 0x1–0x53). Offline CSS CPU fields:
 
 - 0x41–0x44: CPU level bytes (CSSData->players[i].cpu_level +0x0F)
 - 0x45–0x48: CSSDoor.is_hold_cpu_slider (+0x12) at mnCharSel_803F0DFC.doors[i]
+- 0x4C–0x52: live match pause bytes (when this fork's payload is active)
+- 0x53: payload discriminator (0 = normal, 1 = pause-open, 2 = pause-close)
+- 0x54+: optional crowd-control watch payload for normal payloads.
 
 See doldecomp/melee src/melee/mn/types.h (PlayerInitData, CSSDoor).
+Watch values are exposed on ``gamestate.custom["gecko_watch_values"]``.
 """
 
 from __future__ import annotations
@@ -20,8 +24,16 @@ from melee import enums
 if TYPE_CHECKING:
     from melee.gamestate import GameState, PlayerState
 
-EXI_TRANSFER_LEN = 0x4C
-"""Bytes sent by SendMenuFrame (PAYLOAD_LEN 0x4B + command at 0x0)."""
+EXI_TRANSFER_LEN = 0x54
+"""Base bytes sent by SendMenuFrame through the payload discriminator."""
+PAYLOAD_KIND_OFFSET = 0x53
+PAYLOAD_KIND_NORMAL = 0
+PAYLOAD_KIND_PAUSE_OPEN = 1
+PAYLOAD_KIND_PAUSE_CLOSE = 2
+PAYLOAD_KIND_CUSTOM_KEY = "gecko_payload_kind"
+WATCH_PAYLOAD_COUNT_OFFSET = 0x54
+WATCH_PAYLOAD_VALUES_OFFSET = 0x58
+WATCH_PAYLOAD_VALUE_SIZE = 4
 
 # Scene halfwords (offset 0x1, big-endian u16).
 SCENE_PRESS_START = 0x0000
@@ -34,6 +46,15 @@ SCENE_IN_GAME = 0x0202
 SCENE_ONLINE_IN_GAME = 0x0208
 SCENE_SUDDEN_DEATH = 0x0302
 SCENE_POSTGAME = 0x0402
+
+MATCH_PAUSE_MIN_LEN = 0x53
+"""Minimum payload length to read pause bytes through offset 0x52."""
+
+
+def payload_kind(event_bytes: bytes) -> int:
+    if len(event_bytes) <= PAYLOAD_KIND_OFFSET:
+        return PAYLOAD_KIND_NORMAL
+    return _read_u8(event_bytes, PAYLOAD_KIND_OFFSET)
 
 
 def scene_to_menu_state(scene: int) -> enums.Menu:
@@ -98,6 +119,13 @@ def _fresh_player_states() -> dict[int, PlayerState]:
 def apply_extract_menu_info_payload(event_bytes: bytes, gamestate: GameState) -> None:
     """Update *gamestate* from a SendMenuFrame EXI buffer."""
     scene = _read_u16(event_bytes, 0x1)
+    kind = payload_kind(event_bytes)
+    latched_kind = gamestate.custom.get(PAYLOAD_KIND_CUSTOM_KEY)
+    if kind in (PAYLOAD_KIND_PAUSE_OPEN, PAYLOAD_KIND_PAUSE_CLOSE) or latched_kind not in (
+        PAYLOAD_KIND_PAUSE_OPEN,
+        PAYLOAD_KIND_PAUSE_CLOSE,
+    ):
+        gamestate.custom[PAYLOAD_KIND_CUSTOM_KEY] = kind
     menu_state = scene_to_menu_state(scene)
     gamestate.menu_state = menu_state
 
@@ -122,10 +150,15 @@ def apply_extract_menu_info_payload(event_bytes: bytes, gamestate: GameState) ->
     except TypeError:
         gamestate.menu_selection = 0
 
+    _apply_match_pause_fields(event_bytes, gamestate)
+    if kind in (PAYLOAD_KIND_PAUSE_OPEN, PAYLOAD_KIND_PAUSE_CLOSE):
+        return
+
     _apply_costume_fields(event_bytes, gamestate)
     _apply_online_nametag_submenu(event_bytes, gamestate)
     _apply_cpu_level_fields(event_bytes, gamestate)
     _apply_cpu_slider_fields(event_bytes, gamestate)
+    _apply_watch_payload_fields(event_bytes, gamestate)
 
 
 def _apply_css_screen_fields(event_bytes: bytes, gamestate: GameState) -> None:
@@ -226,3 +259,46 @@ def _apply_cpu_slider_fields(event_bytes: bytes, gamestate: GameState) -> None:
             gamestate.players[port].is_holding_cpu_slider = bool(holding)
     except (TypeError, KeyError):
         pass
+
+
+def _apply_match_pause_fields(event_bytes: bytes, gamestate: GameState) -> None:
+    if len(event_bytes) < MATCH_PAUSE_MIN_LEN:
+        return
+    kind = payload_kind(event_bytes)
+    try:
+        pause_slot = _read_u8(event_bytes, 0x4C)
+        pauser = int(np.ndarray((1,), ">b", event_bytes, 0x4D)[0])
+        pause_timer = _read_u8(event_bytes, 0x4E)
+        pause_cooldown = _read_u8(event_bytes, 0x4F)
+        hud_enabled = _read_u8(event_bytes, 0x50) != 0
+        match_over = _read_u8(event_bytes, 0x51) != 0
+        match_end_pending = _read_u8(event_bytes, 0x52) != 0
+    except TypeError:
+        return
+
+    pause = gamestate.match_pause
+    pause.raw_pause_slot = pause_slot
+    pause.pauser_port_index = pauser
+    pause.pause_open_event = pause.pause_open_event or kind == PAYLOAD_KIND_PAUSE_OPEN
+    pause.pause_close_event = pause.pause_close_event or kind == PAYLOAD_KIND_PAUSE_CLOSE
+    if kind == PAYLOAD_KIND_PAUSE_CLOSE:
+        pause.pause_open_event = False
+    pause.pause_timer_frames = pause_timer
+    pause.pause_cooldown_frames = pause_cooldown
+    pause.hud_enabled = hud_enabled
+    pause.match_over = match_over
+    pause.match_end_pending = match_end_pending
+
+
+def _apply_watch_payload_fields(event_bytes: bytes, gamestate: GameState) -> None:
+    if len(event_bytes) <= WATCH_PAYLOAD_COUNT_OFFSET:
+        return
+    count = _read_u8(event_bytes, WATCH_PAYLOAD_COUNT_OFFSET)
+    values_end = WATCH_PAYLOAD_VALUES_OFFSET + (count * WATCH_PAYLOAD_VALUE_SIZE)
+    if count == 0 or len(event_bytes) < values_end:
+        return
+    values = tuple(
+        _read_u32(event_bytes, WATCH_PAYLOAD_VALUES_OFFSET + (index * WATCH_PAYLOAD_VALUE_SIZE))
+        for index in range(count)
+    )
+    gamestate.custom["gecko_watch_values"] = values
