@@ -77,8 +77,8 @@ class GameState:
     fod_platforms: Optional[FoDPlatforms] = None
     stadium_transformation: Optional[StadiumTransformation] = None
 
-    menu_state: enums.Menu = enums.Menu.IN_GAME
-    """enums.MenuState: The current menu scene, such as IN_GAME, or STAGE_SELECT"""
+    scene: enums.Scene = enums.Scene.IN_GAME
+    """enums.Scene: The current scene, such as IN_GAME, CHARACTER_SELECT, or STAGE_SELECT"""
     submenu: enums.SubMenu = enums.SubMenu.UNKNOWN_SUBMENU
     """(enums.SubMenu): The current sub-menu"""
     players: dict[int, 'PlayerState'] = field(default_factory=dict)

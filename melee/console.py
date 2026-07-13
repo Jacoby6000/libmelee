@@ -950,7 +950,7 @@ class Console:
 
     def __handle_slippstream_events(self, event_bytes: bytes, gamestate: GameState):
         """ Handle a series of events, provided sequentially in a byte array """
-        gamestate.menu_state = enums.Menu.IN_GAME
+        gamestate.scene = enums.Scene.IN_GAME
         while len(event_bytes) > 0:
             command_byte = event_bytes[0]
 
@@ -1421,38 +1421,22 @@ class Console:
 
         Modifies specified gamestate based on the event bytes
          """
-        scene = np.ndarray((1,), ">H", event_bytes, 0x1)[0]
-        if scene == 0x02:
-            gamestate.menu_state = enums.Menu.CHARACTER_SELECT
-            # All the controller ports are active on this screen
-            gamestate.players[1] = PlayerState()
-            gamestate.players[2] = PlayerState()
-            gamestate.players[3] = PlayerState()
-            gamestate.players[4] = PlayerState()
-        elif scene in [0x0102, 0x0108]:
-            gamestate.menu_state = enums.Menu.STAGE_SELECT
-            gamestate.players[1] = PlayerState()
-            gamestate.players[2] = PlayerState()
-            gamestate.players[3] = PlayerState()
-            gamestate.players[4] = PlayerState()
+        scene_halfword = int(np.ndarray((1,), ">H", event_bytes, 0x1)[0])
+        try:
+            gamestate.scene = enums.Scene(scene_halfword)
+        except ValueError:
+            gamestate.scene = enums.Scene.UNKNOWN
 
-        elif scene == 0x0202:
-            gamestate.menu_state = enums.Menu.IN_GAME
-        elif scene == 0x0001:
-            gamestate.menu_state = enums.Menu.MAIN_MENU
-        elif scene == 0x0008:
-            gamestate.menu_state = enums.Menu.SLIPPI_ONLINE_CSS
-            gamestate.players[1] = PlayerState()
-            gamestate.players[2] = PlayerState()
-            gamestate.players[3] = PlayerState()
-            gamestate.players[4] = PlayerState()
-        elif scene == 0x0000:
-            gamestate.menu_state = enums.Menu.PRESS_START
-        else:
-            gamestate.menu_state = enums.Menu.UNKNOWN_MENU
+        # All controller ports are active on CSS / SSS scenes
+        if gamestate.scene in (enums.Scene.CHARACTER_SELECT,
+                               enums.Scene.STAGE_SELECT,
+                               enums.Scene.SLIPPI_ONLINE_CSS,
+                               enums.Scene.SLIPPI_ONLINE_STAGE_SELECT):
+            for port in range(1, 5):
+                gamestate.players[port] = PlayerState()
 
         # controller port statuses at CSS
-        if gamestate.menu_state in [enums.Menu.CHARACTER_SELECT, enums.Menu.SLIPPI_ONLINE_CSS]:
+        if gamestate.scene in (enums.Scene.CHARACTER_SELECT, enums.Scene.SLIPPI_ONLINE_CSS):
             gamestate.players[1].controller_status = enums.ControllerStatus(np.ndarray((1,), ">B", event_bytes, 0x25)[0])
             gamestate.players[2].controller_status = enums.ControllerStatus(np.ndarray((1,), ">B", event_bytes, 0x26)[0])
             gamestate.players[3].controller_status = enums.ControllerStatus(np.ndarray((1,), ">B", event_bytes, 0x27)[0])
@@ -1516,7 +1500,7 @@ class Console:
             except TypeError:
                 gamestate.players[4].coin_down = False
 
-        if gamestate.menu_state == enums.Menu.STAGE_SELECT:
+        if gamestate.scene == enums.Scene.STAGE_SELECT:
             # Stage
             try:
                 gamestate.stage = enums.Stage(np.ndarray((1,), ">B", event_bytes, 0x24)[0])
@@ -1550,7 +1534,7 @@ class Console:
 
         # Online costume chosen
         try:
-            if gamestate.menu_state == enums.Menu.SLIPPI_ONLINE_CSS:
+            if gamestate.scene == enums.Scene.SLIPPI_ONLINE_CSS:
                 for i in range(4):
                     gamestate.players[i+1].costume = np.ndarray((1,), ">B", event_bytes, 0x3F)[0]
         except TypeError:
@@ -1558,7 +1542,7 @@ class Console:
 
         # This value is 0x05 in the nametag entry
         try:
-            if gamestate.menu_state == enums.Menu.SLIPPI_ONLINE_CSS:
+            if gamestate.scene == enums.Scene.SLIPPI_ONLINE_CSS:
                 nametag = np.ndarray((1,), ">B", event_bytes, 0x40)[0]
                 if nametag == 0x05:
                     gamestate.submenu = enums.SubMenu.NAME_ENTRY_SUBMENU

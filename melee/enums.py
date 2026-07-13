@@ -28,17 +28,26 @@ def to_internal_stage(stage_id):
         return Stage.DREAMLAND
     return Stage.NO_STAGE
 
-class Menu(Enum):
-    """A primary menu scene the game can be in """
-    CHARACTER_SELECT = 0
-    STAGE_SELECT = 1
-    IN_GAME = 2
-    SUDDEN_DEATH = 3
-    POSTGAME_SCORES = 4
-    MAIN_MENU = 5
-    SLIPPI_ONLINE_CSS = 6
-    PRESS_START = 7
-    UNKNOWN_MENU = 0xff
+class Scene(Enum):
+    """Melee scene halfword from the menu event payload.
+
+    Mirrors doldecomp's GameSceneKind enum. The low byte is the GameSceneKind
+    value (from the Scene enum above), the high byte is a sub-scene index.
+    GM_HANYU_CSS (GameSceneKind.CSS, 0x08) is the Slippi online game mode.
+
+    Construct directly from the raw 16-bit halfword:
+        scene = Scene(halfword)
+    """
+    TITLE = 0x0000
+    MAIN_MENU = 0x0001
+    CHARACTER_SELECT = 0x0002
+    STAGE_SELECT = 0x0102
+    IN_GAME = 0x0202
+    SUDDEN_DEATH = 0x0302
+    POSTGAME_SCORES = 0x0402
+    SLIPPI_ONLINE_CSS = 0x0008
+    SLIPPI_ONLINE_STAGE_SELECT = 0x0108
+    UNKNOWN = 0xFFFF
 
 class SubMenu(Enum):
     """Sub-menu of a primary menu"""

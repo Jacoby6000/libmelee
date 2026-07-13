@@ -61,7 +61,7 @@ class MenuHelper():
             raise ValueError("Can't enter a connect code without a user.json configured.")
 
         # If we're at the character select screen, choose our character
-        if gamestate.menu_state in [enums.Menu.CHARACTER_SELECT, enums.Menu.SLIPPI_ONLINE_CSS]:
+        if gamestate.scene in [enums.Scene.CHARACTER_SELECT, enums.Scene.SLIPPI_ONLINE_CSS]:
             if gamestate.submenu == enums.SubMenu.NAME_ENTRY_SUBMENU:
                 self.enter_direct_code(
                     gamestate=gamestate,
@@ -81,17 +81,17 @@ class MenuHelper():
                     swag=swag,
                     start=autostart)
         # If we're at the postgame scores screen, spam START
-        elif gamestate.menu_state == enums.Menu.POSTGAME_SCORES:
+        elif gamestate.scene == enums.Scene.POSTGAME_SCORES:
             self.skip_postgame(controller=controller)
         # If we're at the stage select screen, choose a stage
-        elif gamestate.menu_state == enums.Menu.STAGE_SELECT:
+        elif gamestate.scene == enums.Scene.STAGE_SELECT:
             self.choose_stage(stage=stage_selected,
                               gamestate=gamestate,
                               controller=controller,
                               character=character_selected,
                               frozen_stadium=frozen_stadium,
                               autostart=autostart)
-        elif gamestate.menu_state == enums.Menu.MAIN_MENU:
+        elif gamestate.scene == enums.Scene.MAIN_MENU:
             if connect_code:
                 self.choose_direct_online(gamestate=gamestate, controller=controller)
             else:
@@ -211,7 +211,7 @@ class MenuHelper():
                 opponent_state = player
                 break
 
-        isSlippiCSS = gamestate.menu_state == enums.Menu.SLIPPI_ONLINE_CSS
+        isSlippiCSS = gamestate.scene == enums.Scene.SLIPPI_ONLINE_CSS
         if isSlippiCSS:
             ai_state = gamestate.players[1]
             swag = True
@@ -645,7 +645,7 @@ class MenuHelper():
             controller.release_all()
             return
 
-        if gamestate.menu_state == enums.Menu.MAIN_MENU:
+        if gamestate.scene == enums.Scene.MAIN_MENU:
             if gamestate.submenu == enums.SubMenu.MAIN_MENU_SUBMENU:
                 if gamestate.menu_selection == 1:
                     controller.press_button(enums.Button.BUTTON_A)
@@ -658,7 +658,7 @@ class MenuHelper():
                     controller.tilt_analog(enums.Button.BUTTON_MAIN, .5, 0)
             else:
                 controller.press_button(enums.Button.BUTTON_B)
-        elif gamestate.menu_state == enums.Menu.PRESS_START:
+        elif gamestate.scene == enums.Scene.TITLE:
             controller.press_button(enums.Button.BUTTON_START)
         else:
             controller.release_all()
@@ -675,7 +675,7 @@ class MenuHelper():
         if gamestate.frame % 2 == 0:
             controller.release_all()
             return
-        if gamestate.menu_state == enums.Menu.MAIN_MENU:
+        if gamestate.scene == enums.Scene.MAIN_MENU:
             if gamestate.submenu == enums.SubMenu.ONLINE_PLAY_SUBMENU:
                 if gamestate.menu_selection == 2:
                     controller.press_button(enums.Button.BUTTON_A)
@@ -695,7 +695,7 @@ class MenuHelper():
                 pass
             else:
                 controller.press_button(enums.Button.BUTTON_B)
-        elif gamestate.menu_state == enums.Menu.PRESS_START:
+        elif gamestate.scene == enums.Scene.TITLE:
             controller.press_button(enums.Button.BUTTON_START)
         else:
             controller.release_all()
