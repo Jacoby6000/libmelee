@@ -177,6 +177,12 @@ def _apply_costume_fields(event_bytes: bytes, gamestate: GameState) -> None:
     try:
         if gamestate.menu_state == enums.Menu.SLIPPI_ONLINE_CSS:
             gamestate.players[1].costume = _read_u8(event_bytes, 0x3F)
+            return
+        if gamestate.menu_state == enums.Menu.CHARACTER_SELECT:
+            for port, offset in ((1, 0x3F), (2, 0x49), (3, 0x4A), (4, 0x4B)):
+                if len(event_bytes) <= offset:
+                    continue
+                gamestate.players[port].costume = _read_u8(event_bytes, offset)
     except (TypeError, KeyError):
         pass
 

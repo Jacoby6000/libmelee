@@ -263,8 +263,12 @@ class MenuHelper():
         wiggleroom = 1.5
 
         # Set our CPU level correctly
-        if use_cpu and correct_character and (coin_down or cursor_y < 0) \
-            and (cpu_level != ai_state.cpu_level) or ai_state.is_holding_cpu_slider:
+        if use_cpu and (
+            correct_character
+            and (coin_down or cursor_y < 0)
+            and (cpu_level != ai_state.cpu_level)
+            or ai_state.is_holding_cpu_slider
+        ):
 
             assert not isSlippiCSS
 
@@ -368,9 +372,8 @@ class MenuHelper():
             controller.tilt_analog(enums.Button.BUTTON_MAIN, x, y)
             return
 
-        # TODO: set costume locally as well. The issue is that we currently
-        # only extract the costume in online play, which will require a change
-        # to the libmelee menu extraction gecko code to fix.
+        # Costume Y-cycle on offline CSS: Extract Menu Info gecko writes indices to
+        # payload 0x3F (P1) and 0x49-0x4B (P2-P4); console.py maps them on CHARACTER_SELECT.
         if correct_character and swag and isSlippiCSS:
             if gamestate.frame % 2 == 0:
                 controller.release_all()
