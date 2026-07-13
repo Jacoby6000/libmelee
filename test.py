@@ -67,5 +67,91 @@ class SLPFile(unittest.TestCase):
         self.assertTrue(framedata.is_attack(melee.Character.FALCO, melee.Action.DAIR))
         self.assertFalse(framedata.is_attack(melee.Character.FALCO, melee.Action.STANDING))
 
+class MenuEventPayloadTests(unittest.TestCase):
+    def _console(self):
+        return melee.Console(is_dolphin=False, allow_old_version=True)
+
+    def test_offline_css_clears_cpu_level_for_human_ports(self) -> None:
+        console = self._console()
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0002).to_bytes(2, byteorder="big")
+        payload[0x25] = 0  # port 1 human
+        payload[0x41] = 9
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.CHARACTER_SELECT)
+        self.assertEqual(gamestate.players[1].cpu_level, 0)
+
+    def test_offline_css_reads_cpu_level_for_cpu_ports(self) -> None:
+        console = self._console()
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0002).to_bytes(2, byteorder="big")
+        payload[0x25] = 1  # port 1 CPU
+        payload[0x41] = 9
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.players[1].cpu_level, 9)
+
+    def test_offline_css_clears_cpu_slider_flag_for_human_ports(self) -> None:
+        console = self._console()
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0002).to_bytes(2, byteorder="big")
+        payload[0x25] = 0  # port 1 human
+        payload[0x45] = 1  # garbage slider-held byte
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.CHARACTER_SELECT)
+        self.assertFalse(gamestate.players[1].is_holding_cpu_slider)
+
+    def test_offline_css_reads_cpu_slider_held(self) -> None:
+        console = self._console()
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0002).to_bytes(2, byteorder="big")
+        payload[0x25] = 1  # port 1 CPU
+        payload[0x45] = 1
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertTrue(gamestate.players[1].is_holding_cpu_slider)
+
+    def test_offline_sss_reads_stage_cursors(self) -> None:
+        import struct
+
+        console = self._console()
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0102).to_bytes(2, byteorder="big")
+        struct.pack_into(">f", payload, 0x31, 1.5)
+        struct.pack_into(">f", payload, 0x35, 2.5)
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.STAGE_SELECT)
+        self.assertAlmostEqual(float(gamestate.players[1].cursor.x), 1.5)
+        self.assertAlmostEqual(float(gamestate.players[1].cursor.y), 2.5)
+
+    def test_online_sss_does_not_apply_stage_cursors(self) -> None:
+        import struct
+
+        console = self._console()
+        payload = bytearray(0x50)
+        payload[0x1:0x3] = (0x0108).to_bytes(2, byteorder="big")
+        struct.pack_into(">f", payload, 0x31, 9.0)
+        struct.pack_into(">f", payload, 0x35, 8.0)
+
+        gamestate = melee.GameState()
+        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+
+        self.assertEqual(gamestate.menu_state, melee.Menu.STAGE_SELECT)
+        self.assertAlmostEqual(float(gamestate.players[1].cursor.x), 0.0)
+        self.assertAlmostEqual(float(gamestate.players[1].cursor.y), 0.0)
+
 if __name__ == '__main__':
     unittest.main()
