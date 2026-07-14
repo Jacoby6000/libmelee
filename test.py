@@ -2,6 +2,7 @@
 import unittest
 
 import melee
+from hypothesis import given, strategies as st
 
 class SLPFile(unittest.TestCase):
     """
@@ -72,32 +73,19 @@ class MenuSceneTests(unittest.TestCase):
     def _console(self):
         return melee.Console(is_dolphin=False, allow_old_version=True)
 
-    def _send_menu_event(self, console, scene_halfword, payload_len=0x49):
-        payload = bytearray(payload_len)
-        payload[0x1:0x3] = scene_halfword.to_bytes(2, byteorder="big")
+    @given(halfword=st.integers(0, 0xFFFF))
+    def test_scene_halfword_parsing(self, halfword: int) -> None:
+        """The scene parsed from a menu-event payload matches direct enum
+        construction from the same halfword (UNKNOWN on out-of-range values)."""
+        payload = bytearray(0x49)
+        payload[0x1:0x3] = halfword.to_bytes(2, byteorder="big")
         gamestate = melee.GameState()
-        console._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
-        return gamestate
-
-    def test_offline_css(self) -> None:
-        console = self._console()
-        gamestate = self._send_menu_event(console, 0x0002)
-        self.assertEqual(gamestate.scene, melee.Scene.CHARACTER_SELECT)
-
-    def test_postgame_scores(self) -> None:
-        console = self._console()
-        gamestate = self._send_menu_event(console, 0x0402)
-        self.assertEqual(gamestate.scene, melee.Scene.POSTGAME_SCORES)
-
-    def test_sudden_death(self) -> None:
-        console = self._console()
-        gamestate = self._send_menu_event(console, 0x0302)
-        self.assertEqual(gamestate.scene, melee.Scene.SUDDEN_DEATH)
-
-    def test_unknown_scene_falls_back(self) -> None:
-        console = self._console()
-        gamestate = self._send_menu_event(console, 0x9999)
-        self.assertEqual(gamestate.scene, melee.Scene.UNKNOWN)
+        self._console()._Console__handle_slippstream_menu_event(bytes(payload), gamestate)
+        try:
+            expected = melee.Scene(halfword)
+        except ValueError:
+            expected = melee.Scene.UNKNOWN
+        self.assertEqual(gamestate.scene, expected)
 
 
 if __name__ == '__main__':

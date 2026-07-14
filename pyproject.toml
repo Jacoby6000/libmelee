@@ -28,6 +28,11 @@ dependencies = [
     "packaging",
 ]
 
+[dependency-groups]
+dev = [
+  "hypothesis"
+]
+
 [project.urls]
 Homepage = "https://github.com/vladfi1/libmelee"
 Repository = "https://github.com/vladfi1/libmelee"

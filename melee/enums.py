@@ -3,37 +3,139 @@
 from enum import Enum
 
 class Stage(Enum):
-    """A VS-mode stage """
-    NO_STAGE = 0
-    FINAL_DESTINATION = 0x19
-    BATTLEFIELD = 0x18
+    """A VS-mode stage.
+
+    Numeric values are SSS (Stage Select Screen) position indices (0x00-0x1D),
+    matching what Slippi reports in the stage-select menu event (offset 0x24).
+    Mirrors the mnStageSel_803F06D0 array layout in doldecomp.
+    """
+    NO_STAGE = 0x00
+    PEACHS_CASTLE = 0x00 # SSS position 0; shares value with NO_STAGE
+    RAINBOW_CRUISE = 0x01
+    KONGO_JUNGLE = 0x02
+    JUNGLE_JAPES = 0x03
+    GREAT_BAY = 0x04
+    HYRULE_TEMPLE = 0x05
+    YOSHIS_STORY = 0x06
+    YOSHIS_ISLAND = 0x07
+    FOUNTAIN_OF_DREAMS = 0x08
+    GREEN_GREENS = 0x09
+    CORNERIA = 0x0A
+    VENOM = 0x0B
+    BRINSTAR = 0x0C
+    BRINSTAR_DEPTHS = 0x0D
+    ONETT = 0x0E
+    FOURSIDE = 0x0F
+    MUTE_CITY = 0x10
+    BIG_BLUE = 0x11
     POKEMON_STADIUM = 0x12
+    POKE_FLOATS = 0x13
+    MUSHROOM_KINGDOM = 0x14
+    MUSHROOM_KINGDOM_II = 0x15
+    ICICLE_MOUNTAIN = 0x16
+    FLAT_ZONE = 0x17
+    BATTLEFIELD = 0x18
+    FINAL_DESTINATION = 0x19
     DREAMLAND = 0x1A
-    FOUNTAIN_OF_DREAMS = 0x8
-    YOSHIS_STORY = 0x6
-    RANDOM_STAGE = 0x1D # not technically a stage, but it's useful to call it one
+    YOSHIS_ISLAND_N64 = 0x1B
+    KONGO_JUNGLE_N64 = 0x1C
+    RANDOM_STAGE = 0x1D
+
+_EXTERNAL_TO_STAGE = {
+    0x04: Stage.PEACHS_CASTLE,
+    0x0B: Stage.RAINBOW_CRUISE,
+    0x05: Stage.KONGO_JUNGLE,
+    0x0C: Stage.JUNGLE_JAPES,
+    0x0D: Stage.GREAT_BAY,
+    0x0E: Stage.HYRULE_TEMPLE,
+    0x08: Stage.YOSHIS_STORY,
+    0x10: Stage.YOSHIS_ISLAND,
+    0x02: Stage.FOUNTAIN_OF_DREAMS,
+    0x11: Stage.GREEN_GREENS,
+    0x07: Stage.CORNERIA,
+    0x16: Stage.VENOM,
+    0x06: Stage.BRINSTAR,
+    0x0F: Stage.BRINSTAR_DEPTHS,
+    0x09: Stage.ONETT,
+    0x12: Stage.FOURSIDE,
+    0x0A: Stage.MUTE_CITY,
+    0x18: Stage.BIG_BLUE,
+    0x03: Stage.POKEMON_STADIUM,
+    0x17: Stage.POKE_FLOATS,
+    0x13: Stage.MUSHROOM_KINGDOM,
+    0x14: Stage.MUSHROOM_KINGDOM_II,
+    0x19: Stage.ICICLE_MOUNTAIN,
+    0x1B: Stage.FLAT_ZONE,
+    0x1F: Stage.BATTLEFIELD,
+    0x20: Stage.FINAL_DESTINATION,
+    0x1C: Stage.DREAMLAND,
+    0x1D: Stage.YOSHIS_ISLAND_N64,
+    0x1E: Stage.KONGO_JUNGLE_N64,
+    0x00: Stage.RANDOM_STAGE,
+}
 
 def to_internal_stage(stage_id):
-    if stage_id == 0x03:
-        return Stage.POKEMON_STADIUM
-    if stage_id == 0x08:
-        return Stage.YOSHIS_STORY
-    if stage_id == 0x02:
-        return Stage.FOUNTAIN_OF_DREAMS
-    if stage_id == 0x1F:
-        return Stage.BATTLEFIELD
-    if stage_id == 0x20:
-        return Stage.FINAL_DESTINATION
-    if stage_id == 0x1C:
-        return Stage.DREAMLAND
-    return Stage.NO_STAGE
+    """Converts a Slippi external stage ID (game-start offset 0x13, 16-bit)
+    to a Stage enum value (SSS position index)."""
+    return _EXTERNAL_TO_STAGE.get(stage_id, Stage.NO_STAGE)
+
+class GameModeKind(Enum):
+    """Melee game mode, mirroring doldecomp's gm/forward.h GameModeKind enum."""
+    TITLE = 0x00
+    MENU = 0x01
+    VS = 0x02
+    CLASSIC = 0x03
+    ADVENTURE = 0x04
+    ALLSTAR = 0x05
+    DEBUG = 0x06
+    DEBUG_SOUND_TEST = 0x07
+    HANYU_CSS = 0x08
+    HANYU_SSS = 0x09
+    CAMERA_MODE = 0x0A
+    TOY_GALLERY = 0x0B
+    TOY_LOTTERY = 0x0C
+    TOY_COLLECTION = 0x0D
+    DEBUG_VS = 0x0E
+    TARGET_TEST = 0x0F
+    SUPER_SUDDEN_DEATH_VS = 0x10
+    INVISIBLE_VS = 0x11
+    SLOMO_VS = 0x12
+    LIGHTNING_VS = 0x13
+    CHALLENGER_APPROACH = 0x14
+    CLASSIC_GOVER = 0x15
+    ADVENTURE_GOVER = 0x16
+    ALLSTAR_GOVER = 0x17
+    OPENING_MV = 0x18
+    DEBUG_CUTSCENE = 0x19
+    DEBUG_GOVER = 0x1A
+    TOURNAMENT = 0x1B
+    TRAINING = 0x1C
+    TINY_VS = 0x1D
+    GIANT_VS = 0x1E
+    STAMINA_VS = 0x1F
+    HOME_RUN_CONTEST = 0x20
+    TEN_MAN_VS = 0x21
+    HUNDRED_MAN_VS = 0x22
+    THREE_MIN_VS = 0x23
+    FIFTEEN_MIN_VS = 0x24
+    ENDLESS_VS = 0x25
+    CRUEL_VS = 0x26
+    PROGRESSIVE_SCAN = 0x27
+    BOOT = 0x28
+    MEMCARD = 0x29
+    FIXED_CAMERA_VS = 0x2A
+    EVENT = 0x2B
+    SINGLE_BUTTON_VS = 0x2C
+    COUNT = 0x2D
 
 class Scene(Enum):
     """Melee scene halfword from the menu event payload.
 
-    Mirrors doldecomp's GameSceneKind enum. The low byte is the GameSceneKind
-    value (from the Scene enum above), the high byte is a sub-scene index.
-    GM_HANYU_CSS (GameSceneKind.CSS, 0x08) is the Slippi online game mode.
+    Mirrors doldecomp's GameSceneKind enum (gm/forward.h). The low byte is the
+    GameSceneKind value; the high byte is a sub-scene index.
+    For VS mode (GS_VS = 0x02), sub-scenes are: 0x00=CSS, 0x01=SSS, 0x02=in-game,
+    0x03=sudden death, 0x04=postgame scores.
+    For Slippi online (GS_CSS = 0x08), sub-scenes are: 0x00=CSS, 0x01=SSS.
 
     Construct directly from the raw 16-bit halfword:
         scene = Scene(halfword)
@@ -45,8 +147,48 @@ class Scene(Enum):
     IN_GAME = 0x0202
     SUDDEN_DEATH = 0x0302
     POSTGAME_SCORES = 0x0402
+    SUDDEN_DEATH_SCENE = 0x0003
+    TRAINING_MODE = 0x0004
+    RESULTS = 0x0005
+    UNUSED_0x6 = 0x0006
+    DEBUG_MENU = 0x0007
     SLIPPI_ONLINE_CSS = 0x0008
     SLIPPI_ONLINE_STAGE_SELECT = 0x0108
+    SSS = 0x0009
+    TOY_GALLERY = 0x000B
+    TOY_LOTTERY = 0x000C
+    TOY_COLLECTION = 0x000D
+    INTRO_NORMAL = 0x000E
+    REGEND_TOYFALL = 0x000F
+    REGEND_CONGRATS = 0x0010
+    CUTSCENE_LUIGI = 0x0011
+    CUTSCENE_BRINSTAR = 0x0012
+    CUTSCENE_EXPLOSION = 0x0013
+    CUTSCENE_3KIRBYS = 0x0014
+    CUTSCENE_GIANTKIRBY = 0x0015
+    CUTSCENE_STARFOX = 0x0016
+    CUTSCENE_FZERO = 0x0017
+    CUTSCENE_METAL = 0x0018
+    CUTSCENE_BOWSERTOY = 0x0019
+    CUTSCENE_GIGATRANSFORM = 0x001A
+    CUTSCENE_GIGADEFEATED = 0x001B
+    MOVIE_OPENING = 0x001C
+    MOVIE_END = 0x001D
+    MOVIE_HOWTO = 0x001E
+    MOVIE_OMAKE15 = 0x001F
+    INTRO_EASY = 0x0020
+    INTRO_ALLSTAR = 0x0021
+    GAMEOVER = 0x0022
+    COMING_SOON = 0x0023
+    TOU_SETUP = 0x0024
+    TOU_BRACKET = 0x0025
+    TOU_ALT = 0x0026
+    PRIZE_INTERFACE = 0x0027
+    PROG_SCAN = 0x0028
+    APPROACH = 0x0029
+    MEMCARD = 0x002A
+    STAFFROLL = 0x002B
+    CAMERA_VS = 0x002C
     UNKNOWN = 0xFFFF
 
 class SubMenu(Enum):
@@ -127,6 +269,8 @@ class Character(Enum):
     GAMEANDWATCH = 0x18
     GANONDORF = 0x19
     ROY = 0x1a
+    MASTER_HAND = 0x1b
+    CRAZY_HAND = 0x1c
     WIREFRAME_MALE = 0x1d
     WIREFRAME_FEMALE = 0x1e
     GIGA_BOWSER = 0x1f
@@ -246,6 +390,99 @@ def from_internal(character):
     if character == Character.ROY:
         return 0x18
     return 0xFF
+
+class Fighter(Enum):
+    """A Melee character data-table ID.
+
+    Mirrors doldecomp's CharacterKind enum (ft/forward.h). Used for character
+    data lookups. Convert to/from Character (FighterKind) using
+    fighter_to_character / character_to_fighter.
+    """
+    CAPTAIN = 0x00
+    DONKEY = 0x01
+    FOX = 0x02
+    GAMEWATCH = 0x03
+    KIRBY = 0x04
+    KOOPA = 0x05
+    LINK = 0x06
+    LUIGI = 0x07
+    MARIO = 0x08
+    MARS = 0x09
+    MEWTWO = 0x0A
+    NESS = 0x0B
+    PEACH = 0x0C
+    PIKACHU = 0x0D
+    POPONANA = 0x0E
+    PURIN = 0x0F
+    SAMUS = 0x10
+    YOSHI = 0x11
+    ZELDA = 0x12
+    SEAK = 0x13
+    FALCO = 0x14
+    CLINK = 0x15
+    DRMARIO = 0x16
+    EMBLEM = 0x17
+    PICHU = 0x18
+    GANON = 0x19
+    MASTERH = 0x1A
+    BOY = 0x1B
+    GIRL = 0x1C
+    GKOOPS = 0x1D
+    CREZYH = 0x1E
+    SANDBAG = 0x1F
+    POPO = 0x20
+    NONE = 0x21
+
+_FIGHTER_TO_CHARACTER = {
+    Fighter.CAPTAIN: Character.CPTFALCON,
+    Fighter.DONKEY: Character.DK,
+    Fighter.FOX: Character.FOX,
+    Fighter.GAMEWATCH: Character.GAMEANDWATCH,
+    Fighter.KIRBY: Character.KIRBY,
+    Fighter.KOOPA: Character.BOWSER,
+    Fighter.LINK: Character.LINK,
+    Fighter.LUIGI: Character.LUIGI,
+    Fighter.MARIO: Character.MARIO,
+    Fighter.MARS: Character.MARTH,
+    Fighter.MEWTWO: Character.MEWTWO,
+    Fighter.NESS: Character.NESS,
+    Fighter.PEACH: Character.PEACH,
+    Fighter.PIKACHU: Character.PIKACHU,
+    Fighter.POPONANA: Character.POPO,
+    Fighter.PURIN: Character.JIGGLYPUFF,
+    Fighter.SAMUS: Character.SAMUS,
+    Fighter.YOSHI: Character.YOSHI,
+    Fighter.ZELDA: Character.ZELDA,
+    Fighter.SEAK: Character.SHEIK,
+    Fighter.FALCO: Character.FALCO,
+    Fighter.CLINK: Character.YLINK,
+    Fighter.DRMARIO: Character.DOC,
+    Fighter.EMBLEM: Character.ROY,
+    Fighter.PICHU: Character.PICHU,
+    Fighter.GANON: Character.GANONDORF,
+    Fighter.MASTERH: Character.MASTER_HAND,
+    Fighter.BOY: Character.WIREFRAME_MALE,
+    Fighter.GIRL: Character.WIREFRAME_FEMALE,
+    Fighter.GKOOPS: Character.GIGA_BOWSER,
+    Fighter.CREZYH: Character.CRAZY_HAND,
+    Fighter.SANDBAG: Character.SANDBAG,
+    Fighter.POPO: Character.POPO,
+    Fighter.NONE: Character.UNKNOWN_CHARACTER,
+}
+
+_CHARACTER_TO_FIGHTER = {
+    v: k for k, v in _FIGHTER_TO_CHARACTER.items()
+    if k is not Fighter.POPO
+}
+_CHARACTER_TO_FIGHTER[Character.POPO] = Fighter.POPONANA
+
+def fighter_to_character(fighter):
+    """Converts a Fighter (CharacterKind) to a Character (FighterKind)."""
+    return _FIGHTER_TO_CHARACTER.get(fighter, Character.UNKNOWN_CHARACTER)
+
+def character_to_fighter(character):
+    """Converts a Character (FighterKind) to a Fighter (CharacterKind)."""
+    return _CHARACTER_TO_FIGHTER.get(character, Fighter.NONE)
 
 class Button(Enum):
     """A single button on a GCN controller
