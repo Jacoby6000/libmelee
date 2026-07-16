@@ -898,8 +898,15 @@ class Console:
         else:
             config.set(section, 'Device', 'XInput2/0/Virtual core pointer')
 
-        with open(controller_config_path, 'w') as configfile:
-            config.write(configfile)
+        # When attaching to an already-running Dolphin (e.g. from a read-only
+        # container), the ini is already configured by the host-side launch and
+        # the bind mount may not be writable. The write is unnecessary in that
+        # case, so ignore permission errors.
+        try:
+            with open(controller_config_path, 'w') as configfile:
+                config.write(configfile)
+        except PermissionError:
+            pass
 
         dolphin_config_path = os.path.join(self._get_dolphin_config_path(), "Dolphin.ini")
         config = configparser.ConfigParser()
@@ -907,8 +914,11 @@ class Console:
         # Indexed at 0. "6" means standard controller, "12" means GCN Adapter
         #  The enum is scoped to the proper value, here
         config.set("Core", 'SIDevice'+str(port-1), controllertype.value)
-        with open(dolphin_config_path, 'w') as dolphinfile:
-            config.write(dolphinfile)
+        try:
+            with open(dolphin_config_path, 'w') as dolphinfile:
+                config.write(dolphinfile)
+        except PermissionError:
+            pass
 
     def step(self) -> Optional[GameState]:
         """ 'step' to the next state of the game and flushes all controllers
